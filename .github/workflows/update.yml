@@ -1,0 +1,83 @@
+name: Update data
+
+on:
+  schedule:
+    - cron: '30 6 * * *'   # 06:30 UTC daily; NSIDC and GML post the previous day overnight (US time)
+  workflow_dispatch:
+    inputs:
+      memo:
+        description: 'Why this run (required)'
+        required: true
+        type: string
+      sst_backfill_from:
+        description: 'Recompute SST from this year (e.g. 1981). Empty = current year only'
+        required: false
+        default: ''
+        type: string
+      publish:
+        description: 'Publish a new Kaggle version when data changed'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-data
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 340
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      # Gates run inside build.py; any failure exits non-zero before data/ is touched.
+      - name: Build and gate
+        env:
+          BACKFILL: ${{ inputs.sst_backfill_from }}
+        run: |
+          if [ -n "$BACKFILL" ]; then
+            python scripts/build.py --sst-backfill-from "$BACKFILL"
+          else
+            python scripts/build.py
+          fi
+
+      - name: Commit data
+        id: commit
+        run: |
+          git add data/
+          if git diff --cached --quiet; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "No data change."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "data: update $(date -u +%Y-%m-%d)"
+          git push
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      # Scheduled runs publish only after the repository variable KAGGLE_PUBLISH is set to true.
+      - name: Publish Kaggle version
+        if: >-
+          steps.commit.outputs.changed == 'true' &&
+          (inputs.publish || (github.event_name == 'schedule' && vars.KAGGLE_PUBLISH == 'true'))
+        env:
+          KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
+          KAGGLE_KEY: ${{ secrets.KAGGLE_KEY }}
+        run: |
+          pip install kaggle
+          set -o pipefail
+          kaggle datasets version -p _build -m "Data through $(jq -r '.sst_daily.last_date' data/summary.json)" --dir-mode zip 2>&1 | tee kaggle.log
+          # the CLI can print a rejected upload and still exit 0
+          if grep -qiE "error|unsuccessful" kaggle.log; then exit 1; fi
