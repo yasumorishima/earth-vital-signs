@@ -1,0 +1,45 @@
+{
+  "id": "yasunorim/earth-vital-signs-daily",
+  "expectedUpdateFrequency": "daily",
+  "userSpecifiedSources": "NSIDC Sea Ice Index v4 (G02135, doi:10.7265/a98x-0f50); NOAA Global Monitoring Laboratory CO2, CH4, N2O and SF6 trends (gml.noaa.gov/ccgg/trends, with Scripps Institution of Oceanography for Mauna Loa CO2); NOAA OISST v2.1 daily 0.25-degree SST via NOAA PSL (psl.noaa.gov), cross-checked against NCEI. Built daily by scripts/build.py in https://github.com/yasumorishima/earth-vital-signs, which publishes nothing unless every check passes.",
+  "files": {
+    "sea_ice_extent_daily.csv": {
+      "description": "Daily sea ice extent for each hemisphere from the NSIDC Sea Ice Index v4.",
+      "columns": {
+        "date": "Date (UTC), YYYY-MM-DD",
+        "hemisphere": "north (Arctic) or south (Antarctic)",
+        "extent_mkm2": "Sea ice extent in million square kilometres (area with at least 15% ice concentration)",
+        "missing_mkm2": "Area with missing satellite data, million square kilometres (0 on almost all days)",
+        "extent_5day_mean_mkm2": "Trailing 5-day mean of extent as used in NSIDC charts; empty where the 5 previous days are not all present (every-other-day era before 1987-08)"
+      }
+    },
+    "co2_daily_mauna_loa.csv": {
+      "description": "Daily mean atmospheric CO2 at Mauna Loa Observatory (NOAA GML); days without valid measurements are absent.",
+      "columns": {
+        "date": "Date, YYYY-MM-DD",
+        "decimal_date": "Date as a decimal year, as published by NOAA GML",
+        "co2_ppm": "Daily mean CO2 mole fraction, parts per million (dry air)"
+      }
+    },
+    "greenhouse_gases_monthly.csv": {
+      "description": "Monthly greenhouse gas averages from NOAA GML in long format (one row per series and month).",
+      "columns": {
+        "series": "co2_mlo (Mauna Loa, ppm), co2_global (ppm), ch4_global (ppb), n2o_global (ppb) or sf6_global (ppt)",
+        "date": "First day of the month, YYYY-MM-DD",
+        "average": "Monthly mean in the series' unit; empty where NOAA reports missing",
+        "deseasonalized": "Monthly value with the average seasonal cycle removed, as published by NOAA GML",
+        "interpolated": "co2_mlo only, from 1974-05: True where NOAA filled a missing month by interpolation (negative stdev in the source file); empty for other series and for the Scripps months before 1974-05"
+      }
+    },
+    "sst_daily.csv": {
+      "description": "Daily area-weighted mean sea surface temperature computed from NOAA OISST v2.1 (0.25 degree, cos-latitude weights, ocean cells only).",
+      "columns": {
+        "date": "Date, YYYY-MM-DD",
+        "world_60s_60n": "Mean SST between 60S and 60N, degrees Celsius",
+        "north_atlantic_0_60n_0_80w": "Mean SST over 0-60N, 80W-0, degrees Celsius",
+        "world_60s_60n_anom_1991_2020": "world_60s_60n minus its 1991-2020 mean for the same calendar day (Feb 29 uses Feb 28), degrees Celsius",
+        "north_atlantic_0_60n_0_80w_anom_1991_2020": "North Atlantic mean minus its 1991-2020 mean for the same calendar day, degrees Celsius"
+      }
+    }
+  }
+}
