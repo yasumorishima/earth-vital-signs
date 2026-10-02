@@ -32,7 +32,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 340
     steps:
+      # The branch tip, not the triggering commit: a run queued behind another must see the data
+      # that run committed, or it compares against stale history and its push is rejected.
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
 
       - uses: actions/setup-python@v5
         with:
@@ -40,6 +44,9 @@ jobs:
           cache: pip
 
       - run: pip install -r requirements.txt
+
+      - name: Test the downloader (404, dropped connections, file replaced mid-download)
+        run: python scripts/test_get.py
 
       # Gates run inside build.py; any failure exits non-zero before data/ is touched.
       - name: Build and gate
@@ -67,16 +74,18 @@ jobs:
           git push
           echo "changed=true" >> "$GITHUB_OUTPUT"
 
-      # Scheduled runs publish only after the repository variable KAGGLE_PUBLISH is set to true.
+      # Scheduled runs publish only after the repository variable KAGGLE_PUBLISH is set to true,
+      # and only when data changed. A manual run with publish=true always publishes the current
+      # build, so a failed publish can be retried without waiting for new data.
       - name: Publish Kaggle version
         if: >-
-          steps.commit.outputs.changed == 'true' &&
-          (inputs.publish || (github.event_name == 'schedule' && vars.KAGGLE_PUBLISH == 'true'))
+          inputs.publish ||
+          (github.event_name == 'schedule' && vars.KAGGLE_PUBLISH == 'true' && steps.commit.outputs.changed == 'true')
         env:
           KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
           KAGGLE_KEY: ${{ secrets.KAGGLE_KEY }}
         run: |
-          pip install kaggle
+          pip install kaggle==2.2.4
           set -o pipefail
           kaggle datasets version -p _build -m "Data through $(jq -r '.sst_daily.last_date' data/summary.json)" --dir-mode zip 2>&1 | tee kaggle.log
           # the CLI can print a rejected upload and still exit 0

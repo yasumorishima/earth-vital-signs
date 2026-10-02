@@ -19,6 +19,7 @@ import shutil
 import sys
 import tempfile
 import time
+import urllib.error
 import urllib.request
 from pathlib import Path
 
@@ -38,12 +39,23 @@ NCEI_SST = ("https://www.ncei.noaa.gov/data/sea-surface-temperature-optimum-inte
             "v2.1/access/avhrr/{ym}/oisst-avhrr-v02r01.{ymd}.nc")
 
 FAIL: list[str] = []
+STALE: list[str] = []
 
 
 def gate(ok: bool, msg: str) -> None:
     print(("PASS " if ok else "FAIL ") + msg, flush=True)
     if not ok:
         FAIL.append(msg)
+
+
+def fresh(ok: bool, msg: str) -> None:
+    """Freshness only warns: a source that stopped returns the same rows as before, which cannot
+    damage published history, and blocking on it would freeze the other tables too (e.g. the
+    Mauna Loa outage of 2022). The warning is shown on the workflow run."""
+    print(("PASS " if ok else "STALE ") + msg, flush=True)
+    if not ok:
+        STALE.append(msg)
+        print(f"::warning title=stale source::{msg}", flush=True)
 
 
 def get(url: str, dest: Path | None = None, tries: int = 4) -> bytes | None:
@@ -56,13 +68,23 @@ def get(url: str, dest: Path | None = None, tries: int = 4) -> bytes | None:
                 req = urllib.request.Request(url, headers={"User-Agent": UA})
                 with urllib.request.urlopen(req, timeout=600) as r:
                     return r.read()
+            except urllib.error.HTTPError as e:
+                if e.code < 500:  # 4xx will not change on retry
+                    raise
+                if i == tries - 1:
+                    raise
+                print(f"retry {i + 1} {url}: {e}", flush=True)
+                time.sleep(10 * (i + 1))
             except Exception as e:  # network errors are retried, then raised
                 if i == tries - 1:
                     raise
                 print(f"retry {i + 1} {url}: {e}", flush=True)
                 time.sleep(10 * (i + 1))
-    total = None
-    stalls = 0
+    # PSL rewrites the current year's file daily and ignores If-Range (a stale validator still
+    # gets 206, measured 2026-10-03), so every piece must carry the same Last-Modified and length
+    # as the first; otherwise the download starts over instead of splicing two versions.
+    total = first_lm = None
+    stalls = restarts = 0
     dest.write_bytes(b"")
     while True:
         have = dest.stat().st_size
@@ -77,12 +99,26 @@ def get(url: str, dest: Path | None = None, tries: int = 4) -> bytes | None:
             with urllib.request.urlopen(urllib.request.Request(url, headers=hdr), timeout=600) as r:
                 if have and r.status != 206:
                     raise OSError(f"{url}: server ignored Range (status {r.status})")
+                lm = r.headers.get("Last-Modified")
+                size = (int(r.headers["Content-Range"].rsplit("/", 1)[1]) if have
+                        else int(r.headers["Content-Length"]))
                 if total is None:
-                    total = int(r.headers["Content-Length"])
+                    total, first_lm = size, lm
+                elif (lm, size) != (first_lm, total):
+                    restarts += 1
+                    if restarts > 3:
+                        raise OSError(f"{url}: file kept changing during download")
+                    print(f"{url}: changed mid-download ({first_lm} -> {lm}); starting over", flush=True)
+                    dest.write_bytes(b"")
+                    total = first_lm = None
+                    continue
                 with open(dest, "ab") as f:
                     shutil.copyfileobj(r, f, 1 << 20)
+        except urllib.error.HTTPError as e:
+            if e.code < 500:
+                raise
         except OSError as e:
-            if "ignored Range" in str(e) or "more than" in str(e):
+            if "ignored Range" in str(e) or "more than" in str(e) or "kept changing" in str(e):
                 raise
             # a dropped connection is expected; progress is checked below
         if dest.stat().st_size == have:
@@ -122,7 +158,7 @@ def sea_ice() -> pd.DataFrame:
         gate(g.date.is_unique, f"sea_ice {h}: dates unique")
         gate(g.extent_mkm2.between(lo, hi).all(), f"sea_ice {h}: extent within [{lo},{hi}]")
         gate(g.date.min() == pd.Timestamp("1978-10-26"), f"sea_ice {h}: starts 1978-10-26")
-        gate(lag_days(g.date.max()) <= 6, f"sea_ice {h}: last date {g.date.max().date()} within 6 days")
+        fresh(lag_days(g.date.max()) <= 6, f"sea_ice {h}: last date {g.date.max().date()} within 6 days")
     return out
 
 
@@ -142,7 +178,7 @@ def co2_daily() -> pd.DataFrame:
     df = df[["date", "decimal_date", "co2_ppm"]]
     gate(df.date.is_unique and df.date.is_monotonic_increasing, "co2_daily: dates unique and sorted")
     gate(df.co2_ppm.between(320, 480).all(), "co2_daily: ppm within [320,480]")
-    gate(lag_days(df.date.max()) <= 21, f"co2_daily: last date {df.date.max().date()} within 21 days")
+    fresh(lag_days(df.date.max()) <= 21, f"co2_daily: last date {df.date.max().date()} within 21 days")
     return df
 
 
@@ -174,7 +210,7 @@ def gases_monthly() -> pd.DataFrame:
         })
         gate(g.date.is_unique, f"gases {name}: months unique")
         gate(g.average.dropna().between(lo, hi).all(), f"gases {name}: values within [{lo},{hi}]")
-        gate(lag_days(g.date.max()) <= 200, f"gases {name}: last month {g.date.max().date()} within 200 days")
+        fresh(lag_days(g.date.max()) <= 200, f"gases {name}: last month {g.date.max().date()} within 200 days")
         out.append(g)
     return pd.concat(out).reset_index(drop=True)
 
@@ -244,7 +280,18 @@ def sst(backfill_from: int | None, years_only: list[int] | None = None) -> pd.Da
             years.insert(0, TODAY.year - 1)  # finalize the previous year's preliminary days
     with tempfile.TemporaryDirectory() as td:
         tmp = Path(td)
-        new = pd.concat([sst_year(y, tmp) for y in years])
+        parts = []
+        for y in years:
+            try:
+                parts.append(sst_year(y, tmp))
+            except urllib.error.HTTPError as e:
+                # PSL creates the new year's file only once its first day exists (2027 was 404 on
+                # 2026-10-03); for the first days of January the current year may not exist yet.
+                if e.code == 404 and y == TODAY.year and TODAY.timetuple().tm_yday <= 10:
+                    print(f"sst {y}: no file yet (404); keeping earlier years", flush=True)
+                    continue
+                raise
+        new = pd.concat(parts)
         keep = old[~pd.to_datetime(old.date).dt.year.isin(years)]
         keep = keep[[c for c in keep.columns if c == "date" or c in REGIONS]]
         df = pd.concat([keep, new])
@@ -264,7 +311,7 @@ def sst(backfill_from: int | None, years_only: list[int] | None = None) -> pd.Da
     full = pd.date_range(df.date.min(), df.date.max(), freq="D")
     gate(len(full) == len(df), f"sst: no missing days ({len(full) - len(df)} missing)")
     gate(df["world_60s_60n"].between(19.0, 22.0).all(), "sst: world 60S-60N within [19,22] C")
-    gate(lag_days(df.date.max()) <= 7, f"sst: last date {df.date.max().date()} within 7 days")
+    fresh(lag_days(df.date.max()) <= 7, f"sst: last date {df.date.max().date()} within 7 days")
     return df
 
 
@@ -282,12 +329,18 @@ def history_guard(name: str, new: pd.DataFrame, keys: list[str], recent_days: in
     o = old[old.date < cutoff].set_index(keys).sort_index()
     n = new[new.date < cutoff].set_index(keys).sort_index()
     gate(o.index.isin(n.index).all(), f"{name}: every published row older than {recent_days} days still present")
+    gate(list(o.columns) == list(n.columns), f"{name}: same columns as published")
     n = n.reindex(o.index)
-    num = [c for c in o.select_dtypes("number").columns if c in n.columns and "anom" not in c]
-    d = (o[num] - n[num]).abs().max().max() if len(o) and num else 0.0
+    # Every column is compared, including the SST anomalies: their 1991-2020 normal uses only rows
+    # older than the window, so a change there is a bug in this script, not an upstream revision.
+    num = [c for c in o.select_dtypes("number").columns if c in n.columns]
+    other = [c for c in o.columns if c not in num and c in n.columns]
+    d = (o[num] - n[num].astype(float)).abs().max().max() if len(o) and num else 0.0
     same_nan = bool((o[num].isna() == n[num].isna()).all().all()) if num else True
-    gate(bool(np.nan_to_num(d) < 1e-6 and same_nan),
-         f"{name}: values older than {recent_days} days unchanged (max diff {d})")
+    as_text = lambda x: x.astype("string").fillna("<NA>")  # noqa: E731  bool/str read back as text
+    same_other = bool((as_text(o[other]) == as_text(n[other])).all().all()) if other else True
+    gate(bool(np.nan_to_num(d) < 1e-6 and same_nan and same_other),
+         f"{name}: values older than {recent_days} days unchanged (max diff {d}, other columns same: {same_other})")
 
 
 def main() -> int:
@@ -323,6 +376,7 @@ def main() -> int:
     shutil.copy(ROOT / "kaggle" / "dataset-metadata.json", BUILD / "dataset-metadata.json")
     summary = {name: {"rows": len(df), "last_date": str(df.date.max().date())}
                for name, (df, _, _) in tables.items()}
+    summary["stale_sources"] = STALE  # freshness warnings; empty when every source is current
     (DATA / "summary.json").write_text(json.dumps(summary, indent=2) + "\n")
     print(json.dumps(summary, indent=2))
     return 0
