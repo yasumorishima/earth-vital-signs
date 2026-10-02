@@ -9,7 +9,7 @@ Four headline climate indicators as tidy CSV, rebuilt every day by GitHub Action
 | [`data/greenhouse_gases_monthly.csv`](data/greenhouse_gases_monthly.csv) | Monthly CO2 (Mauna Loa, global), CH4, N2O, SF6 | 1958 / 1979+ |
 | [`data/sst_daily.csv`](data/sst_daily.csv) | Daily mean sea surface temperature, 60S-60N and North Atlantic, with 1991-2020 anomalies | 1981-09-01 |
 
-The latest dates are in [`data/summary.json`](data/summary.json). The same files are published on Kaggle as **Earth Vital Signs - Daily Climate Indicators**.
+The latest dates are in [`data/summary.json`](data/summary.json). A starter notebook with three charts (Arctic sea ice by year, the Mauna Loa CO2 curve, the SST anomaly) is in [`notebooks/`](notebooks/earth-vital-signs-starter.ipynb). The same files are published on Kaggle as **Earth Vital Signs - Daily Climate Indicators**.
 
 ## Why another copy
 
