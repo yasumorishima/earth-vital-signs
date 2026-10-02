@@ -27,8 +27,9 @@ from pathlib import Path
 import pandas as pd
 import matplotlib.pyplot as plt
 
-candidates = [Path("/kaggle/input/earth-vital-signs-daily"), Path("../data"), Path("data")]
-DATA = next(p for p in candidates if (p / "sst_daily.csv").exists())
+# On Kaggle the files sit somewhere under /kaggle/input; in the GitHub repo they are in data/.
+found = sorted(Path("/kaggle/input").glob("**/sst_daily.csv")) + [p / "sst_daily.csv" for p in (Path("../data"), Path("data"))]
+DATA = next(p.parent for p in found if p.exists())
 
 ice = pd.read_csv(DATA / "sea_ice_extent_daily.csv", parse_dates=["date"])
 co2 = pd.read_csv(DATA / "co2_daily_mauna_loa.csv", parse_dates=["date"])
