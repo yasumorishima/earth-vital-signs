@@ -14,5 +14,6 @@
   "sst_daily": {
     "rows": 16467,
     "last_date": "2026-10-01"
-  }
+  },
+  "stale_sources": []
 }
