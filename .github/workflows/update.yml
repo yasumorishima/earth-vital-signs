@@ -51,18 +51,20 @@ jobs:
       # Gates run inside build.py; any failure exits non-zero before data/ is touched.
       - name: Build and gate
         env:
-          BACKFILL: ${{ inputs.sst_backfill_from }}
+          SST_FROM: ${{ inputs.sst_backfill_from }}
         run: |
-          if [ -n "$BACKFILL" ]; then
-            python scripts/build.py --sst-backfill-from "$BACKFILL"
-          else
-            python scripts/build.py
-          fi
+          args=()
+          if [ -n "$SST_FROM" ]; then args+=(--sst-backfill-from "$SST_FROM"); fi
+          python scripts/build.py "${args[@]}"
+          # file and column descriptions are regenerated from the data just written; this fails if a
+          # described column and the CSV header disagree, so a schema change cannot ship undescribed
+          python scripts/make_kaggle_meta.py
+          cp kaggle/dataset-metadata.json _build/dataset-metadata.json
 
       - name: Commit data
         id: commit
         run: |
-          git add data/
+          git add data/ kaggle/dataset-metadata.json kaggle/settings.json
           if git diff --cached --quiet; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
             echo "No data change."

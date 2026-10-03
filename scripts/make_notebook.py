@@ -17,7 +17,7 @@ def code(s):
 md("""
 # Earth Vital Signs: a first look
 
-Three charts from the daily-updated **Earth Vital Signs** dataset: Arctic sea ice by year, the Mauna Loa CO2 curve, and ocean surface temperature against its 1991-2020 normal.
+Six charts from the daily-updated **Earth Vital Signs** dataset: Arctic sea ice by year, the Mauna Loa CO2 curve, ocean and air temperature against their 1991-2020 normals, El Niño day by day, and how the indicators move together month by month.
 
 Every file is rebuilt each day from NOAA and NSIDC; the build code and checks are at https://github.com/yasumorishima/earth-vital-signs
 """)
@@ -34,8 +34,11 @@ DATA = next(p.parent for p in found if p.exists())
 ice = pd.read_csv(DATA / "sea_ice_extent_daily.csv", parse_dates=["date"])
 co2 = pd.read_csv(DATA / "co2_daily_mauna_loa.csv", parse_dates=["date"])
 sst = pd.read_csv(DATA / "sst_daily.csv", parse_dates=["date"])
+air = pd.read_csv(DATA / "air_temperature_daily.csv", parse_dates=["date"])
+enso = pd.read_csv(DATA / "enso_monthly.csv", parse_dates=["date"])
+panel = pd.read_csv(DATA / "climate_monthly_panel.csv", parse_dates=["date"])
 print({name: (len(df), str(df.date.max().date())) for name, df in
-       [("sea ice", ice), ("co2", co2), ("sst", sst)]})
+       [("sea ice", ice), ("co2", co2), ("sst", sst), ("air", air), ("enso", enso), ("panel", panel)]})
 
 plt.rcParams.update({"axes.titlesize": 16, "axes.labelsize": 14, "xtick.labelsize": 12,
                      "ytick.labelsize": 12, "legend.fontsize": 12,
@@ -115,14 +118,78 @@ print(sst.nlargest(5, "world_60s_60n")[["date", "world_60s_60n"]].to_string(inde
 """)
 
 md("""
+## 4. Global air temperature: each year against the 1991-2020 normal
+
+Annual mean of the daily global 2 m air temperature anomaly (ERA5, Copernicus Climate Change Service). The current year is shown to date.
+""")
+
+code("""
+a = air.groupby(air.date.dt.year).global_2t_anom_1991_2020.mean()
+fig, ax = plt.subplots(figsize=(11, 6))
+ax.bar(a.index, a.values, color=[RED if v >= 0 else BLUE for v in a.values], width=0.8)
+ax.axhline(0, color="black", lw=0.8)
+ax.set_title("Global air temperature anomaly by year")
+ax.set_ylabel("°C vs 1991-2020")
+plt.tight_layout()
+plt.show()
+
+rec = air[air.global_record_warm_for_day == True]
+print("Days that set a record for their calendar date, by year (last 6 years):")
+print(rec.groupby(rec.date.dt.year).size().tail(6).to_string())
+""")
+
+md("""
+## 5. El Niño day by day
+
+The daily Niño 3.4 anomaly computed from the 0.25-degree OISST grid, with NOAA's monthly ONI on top. ONI at +0.5 or above marks El Niño conditions, -0.5 or below La Niña.
+""")
+
+code("""
+n34 = sst.set_index("date")["nino34_5n_5s_170w_120w_anom_1991_2020"].loc["2015":]
+oni = enso.set_index("date").oni_anom.loc["2015":]
+fig, ax = plt.subplots(figsize=(11, 6))
+ax.plot(n34.index, n34.values, color=GREY, lw=0.8, label="Niño 3.4, daily")
+ax.plot(oni.index, oni.values, color=RED, lw=2.5, label="ONI, monthly")
+for y in (0.5, -0.5):
+    ax.axhline(y, color="black", lw=0.6, ls="--")
+ax.set_title("Niño 3.4 sea surface temperature anomaly")
+ax.set_ylabel("°C")
+ax.legend(frameon=False)
+plt.tight_layout()
+plt.show()
+""")
+
+md("""
+## 6. How the indicators move together
+
+Correlation of month-to-month values in the monthly panel since 1982. Greenhouse gases are left out because they mostly share a trend; the anomalies and indices are what vary from month to month.
+""")
+
+code("""
+cols = ["air_temp_global_anom", "sst_world_60s_60n_anom", "sst_nino34_anom",
+        "sst_dmi", "sea_ice_north_anom_mkm2", "sea_ice_south_anom_mkm2", "ao", "nao", "oni_anom"]
+c = panel[panel.date >= "1982-01-01"][cols].corr()
+fig, ax = plt.subplots(figsize=(10, 8))
+im = ax.imshow(c.values, cmap="RdBu_r", vmin=-1, vmax=1)
+ax.set_xticks(range(len(cols)), cols, rotation=60, ha="right")
+ax.set_yticks(range(len(cols)), cols)
+fig.colorbar(im, ax=ax, shrink=0.8)
+ax.set_title("Correlation between monthly indicators, 1982 to today")
+plt.tight_layout()
+plt.show()
+""")
+
+md("""
 ## Ideas to try
 
 - Forecast the September Arctic minimum from the extent in June and July.
 - Compare the Antarctic record (`hemisphere == "south"`) with the Arctic: the trends differ.
 - Relate the North Atlantic SST anomaly (`north_atlantic_0_60n_0_80w_anom_1991_2020`) to hurricane seasons.
-- Use `greenhouse_gases_monthly.csv` to compare growth rates of CO2, methane and nitrous oxide.
+- Use `greenhouse_gases_monthly.csv` (`yoy_change`) to compare growth rates of CO2, methane and nitrous oxide.
+- Predict ONI a few months ahead from the daily Niño boxes, the Indian Ocean Dipole (`dmi`) and the monthly panel.
+- Use `rank_lowest_for_day` / `*_rank_warmest_for_day` as targets: they only use past years, so there is no look-ahead.
 
-Please cite the original producers (NSIDC, NOAA GML with Scripps, NOAA OISST/PSL) as listed in the dataset description.
+Please cite the original producers (NSIDC, NOAA GML with Scripps, NOAA OISST via PSL, ERA5 from Copernicus, NOAA CPC) as listed in the dataset description.
 """)
 
 nb = {"cells": cells, "metadata": {"kernelspec": {"display_name": "Python 3", "language": "python", "name": "python3"},
