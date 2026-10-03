@@ -432,10 +432,13 @@ def sst_crosscheck(df: pd.DataFrame, tmp: Path) -> None:
 
 NINO = {"Nino12": "nino12_0_10s_90w_80w", "Nino3": "nino3_5n_5s_150w_90w",
         "Nino34": "nino34_5n_5s_170w_120w", "Nino4": "nino4_5n_5s_160e_150w"}
-# CPC's weekly product is a different OISST rendering, so single weeks differ by up to ~0.4 C
-# (Niño 1+2); measured 2025-01..2026-09: mean difference -0.015..+0.006 C, sd 0.050..0.105 C.
-# A shifted box biases the mean; a window shifted by 3 days raises the sd to 0.12..0.23 C.
-WEEKLY_BIAS_TOL, WEEKLY_SD_TOL = 0.05, 0.15
+# CPC's weekly product is a different OISST rendering, so single weeks differ by up to ~0.4 C.
+# Measured over every 52-week window 1982-2026 (2026-10-03): |mean difference| at most 0.046 C
+# (Niño 1+2) and 0.017-0.026 C elsewhere; sd at most 0.196 C (Niño 1+2) and 0.070-0.083 C elsewhere.
+# The limits sit 1.5x above those; a wrong box shifts the mean by far more. A 1-day shift is not
+# visible here (sd 0.048 vs 0.024 at best) -- the NCEI check pins the dates instead.
+WEEKLY_BIAS_TOL = 0.08
+WEEKLY_SD_TOL = {"Nino12": 0.30, "Nino3": 0.13, "Nino34": 0.12, "Nino4": 0.11}
 
 
 def cpc_weekly(raw: str) -> pd.DataFrame:
@@ -464,9 +467,9 @@ def cpc_weekly_check(df: pd.DataFrame) -> None:
     recent = w[(w.index <= end) & (w.index > end - pd.Timedelta(days=7 * 52))]
     for k, col in NINO.items():
         d = (s[col].rolling(7, center=True).mean().reindex(recent.index) - recent[k]).dropna()
-        gate(len(d) >= 45 and abs(d.mean()) <= WEEKLY_BIAS_TOL and d.std() <= WEEKLY_SD_TOL,
+        gate(len(d) >= 45 and abs(d.mean()) <= WEEKLY_BIAS_TOL and d.std() <= WEEKLY_SD_TOL[k],
              f"sst {k} 7-day mean vs CPC weekly, {len(d)} weeks: mean diff {d.mean():+.3f} C "
-             f"(|.| <= {WEEKLY_BIAS_TOL}), sd {d.std():.3f} C (<= {WEEKLY_SD_TOL})")
+             f"(|.| <= {WEEKLY_BIAS_TOL}), sd {d.std():.3f} C (<= {WEEKLY_SD_TOL[k]})")
 
 
 def sst(backfill_from: int | None, years_only: list[int] | None = None) -> pd.DataFrame:
@@ -493,8 +496,9 @@ def sst(backfill_from: int | None, years_only: list[int] | None = None) -> pd.Da
 def pulse(v: str) -> pd.DataFrame:
     raw = get(PULSE.format(v=v)).decode()
     df = pd.read_csv(io.StringIO(raw), comment="#")
-    gate(list(df.columns)[1:] == [v.split("_")[0], "clim_91-20", "ano_91-20", "status"],
-         f"era5 {v}: columns {list(df.columns)}")
+    want = ["date", v.split("_")[0], "clim_91-20", "ano_91-20", "status"]
+    if list(df.columns) != want:  # stop here: the renaming below would be wrong
+        raise ValueError(f"era5 {v}: columns {list(df.columns)} != {want}")
     df.columns = ["date", "value", "clim", "anom", "status"]
     df["date"] = pd.to_datetime(df.date)
     return df
@@ -511,7 +515,7 @@ def air() -> pd.DataFrame:
         "global_2t_anom_1991_2020": e.anom,
         "status": e.status.str.lower(),
     })
-    daily_complete(df, "air", "1940-01-01", ["global_2t", "global_2t_anom_1991_2020"])
+    daily_complete(df, "air", "1940-01-01", ["global_2t", "global_2t_clim_1991_2020", "global_2t_anom_1991_2020"])
     gate(df.status.isin(["final", "preliminary"]).all(), "air: status is final or preliminary")
     gate((df.status == "preliminary").sum() <= 10, f"air: at most 10 preliminary days "
                                                    f"({(df.status == 'preliminary').sum()})")
@@ -527,16 +531,24 @@ def air() -> pd.DataFrame:
     return df
 
 
-# Measured 2024-10..2026-09 (30-day means): OISST minus ERA5 +0.091 C mean, sd 0.019, correlation
-# 0.986. The offset is a real difference between the two analyses (OISST runs warmer in recent
-# years), so the gate checks that the series move together rather than that they are equal.
+# Measured 2024-10..2026-09: 30-day mean anomalies, OISST minus ERA5 +0.091 C, sd 0.019, correlation
+# 0.986; daily absolute values, OISST minus ERA5 +0.092 C, sd 0.019 (last 40 years: +0.007, sd 0.070).
+# The offset is a real difference between the two analyses. The absolute check is what catches a
+# wrong box: 90S-90N would sit at -2.08 C, the tropics at +6.8 C.
 ERA5_CORR_MIN, ERA5_BIAS_TOL, ERA5_SD_TOL = 0.9, 0.2, 0.08
+ERA5_ABS_BIAS_TOL, ERA5_ABS_SD_TOL = 0.3, 0.06
 
 
 def sst_vs_era5(df: pd.DataFrame) -> None:
     """ERA5's 60S-60N SST (its own boundary analysis) is a second estimate of the same quantity:
     over the last two years the 30-day mean anomalies must move together."""
     e = pulse("sst_60S-60N_ocean").set_index("date")
+    lvl = pd.concat([df.set_index("date")["world_60s_60n"], e.value], axis=1, keys=["oisst", "era5"]).dropna()
+    lvl = lvl[lvl.index >= lvl.index.max() - pd.Timedelta(days=730)]
+    d = lvl.oisst - lvl.era5
+    gate(len(lvl) >= 600 and abs(d.mean()) <= ERA5_ABS_BIAS_TOL and d.std() <= ERA5_ABS_SD_TOL,
+         f"sst 60S-60N daily level vs ERA5, {len(lvl)} days: mean diff {d.mean():+.3f} C "
+         f"(|.| <= {ERA5_ABS_BIAS_TOL}), sd {d.std():.3f} C (<= {ERA5_ABS_SD_TOL})")
     ours = df.set_index("date")["world_60s_60n_anom_1991_2020"]
     both = pd.concat([ours, e.anom], axis=1, keys=["oisst", "era5"]).dropna()
     both = both[both.index >= both.index.max() - pd.Timedelta(days=730)].rolling(30).mean().dropna()
@@ -576,7 +588,8 @@ def enso_monthly() -> pd.DataFrame:
 
 
 def atmosphere_daily() -> pd.DataFrame:
-    """Daily standardized teleconnection indices from NOAA CPC (CDAS reanalysis)."""
+    """Daily standardized teleconnection indices from NOAA CPC. The files keep the name "cdas"; NCEP
+    replaced CDAS with CORe on 2026-03-18, so values from then on may come from the new system."""
     spec = {"ao": "ao.cdas.z1000.19500101", "nao": "nao.cdas.z500.19500101",
             "pna": "pna.cdas.z500.19500101", "aao": "aao.cdas.z700.19790101"}
     df = None

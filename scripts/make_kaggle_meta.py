@@ -5,6 +5,7 @@ Kaggle's public API does not set per-column descriptions, so settings.json is wh
 in the dataset page by hand (see README); dataset-metadata.json is what `kaggle datasets version`
 uploads. Keeping both generated from here stops them drifting apart."""
 import csv
+import datetime as dt
 import json
 import sys
 from pathlib import Path
@@ -126,7 +127,9 @@ FILES = {
         }),
     "atmosphere_indices_daily.csv": (
         "Daily standardized atmospheric circulation indices from NOAA CPC: Arctic Oscillation, North Atlantic "
-        "Oscillation, Pacific-North American pattern and Antarctic Oscillation.",
+        "Oscillation, Pacific-North American pattern and Antarctic Oscillation. CPC's files are named after "
+        "NCEP's CDAS analysis, which NCEP replaced with CORe on 2026-03-18; values from then on may come "
+        "from the new system.",
         {
             "date": "Date, YYYY-MM-DD",
             "ao": "Arctic Oscillation index (1000 hPa height), standardized, unitless",
@@ -211,7 +214,7 @@ def main() -> int:
     if bad:
         print("\n".join(bad))
         return 1
-    meta["description"] = desc_md.strip()
+    meta["description"] = desc_md.strip().replace("{YEAR}", str(dt.date.today().year))
     meta["resources"] = resources
     meta_path.write_text(json.dumps(meta, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     settings = {"id": meta["id"], "expectedUpdateFrequency": meta["expectedUpdateFrequency"],
