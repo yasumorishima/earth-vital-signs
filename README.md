@@ -19,7 +19,7 @@ Column-by-column descriptions are in [`kaggle/settings.json`](kaggle/settings.js
 
 The most-used Kaggle copies of these series stopped updating in 2017-2019. This one is regenerated daily, adds what the sources do not publish (daily Niño-box and regional SST, ranks and records for each calendar day, a monthly panel of all indicators), and only changes after checks pass.
 
-Ranks and record flags compare a value with the same calendar day of its own year and earlier years only, so a published row never changes later and the columns can be used as targets without look-ahead.
+Ranks and record flags compare a value with the same calendar day of its own year and earlier years only, so later years never change an earlier day (a recent day can still move while the source may revise its value), and the columns can be used as targets without look-ahead.
 
 ## How each update is checked
 

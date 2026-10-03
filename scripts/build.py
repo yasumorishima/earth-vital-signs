@@ -144,7 +144,7 @@ def lag_days(last) -> int:
 
 # ---------------------------------------------------------------- derived columns
 # Every derived column depends only on the row's own date and earlier dates (or on the fixed
-# 1991-2020 normal), so a published row never changes when later data arrive.
+# 1991-2020 normal), so later data never change an earlier day's rank.
 def _md(dates: pd.Series) -> pd.Series:
     return dates.dt.strftime("%m-%d")
 
