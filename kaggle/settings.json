@@ -12,7 +12,7 @@
         "missing_mkm2": "Area with missing satellite data, million square kilometres (0 on almost all days)",
         "extent_5day_mean_mkm2": "Trailing 5-day mean of extent (this day and the 4 before) as used in NSIDC charts; empty where those 5 days are not all present (every-other-day era before 1987-08)",
         "extent_anom_1991_2020_mkm2": "extent_mkm2 minus its 1991-2020 mean for the same calendar day (Feb 29 uses Feb 28's normal), million square kilometres",
-        "rank_lowest_for_day": "Rank of extent_mkm2 among the same calendar day of every year up to and including this one (1 = lowest), counting only this year and earlier years, so the value never changes once published. Feb 29 is ranked among leap years only",
+        "rank_lowest_for_day": "Rank of extent_mkm2 among the same calendar day of every year up to and including this one (1 = lowest), counting only this year and earlier years, so later years never change it (a recent day can still move while its value is inside the source revision window). Feb 29 is ranked among leap years only",
         "record_low_for_day": "True when extent is below the same calendar day of every earlier year (a record low for the date); empty until 10 earlier years exist for that day",
         "yoy_change_mkm2": "extent_mkm2 minus the value on the same date one year earlier; empty if that day was not observed (and on Feb 29)"
       }
@@ -64,9 +64,9 @@
         "nino4_5n_5s_160e_150w_anom_1991_2020": "nino4_5n_5s_160e_150w minus its 1991-2020 mean for the same calendar day (Feb 29 uses Feb 28's normal), degrees Celsius",
         "iod_west_10s_10n_50e_70e_anom_1991_2020": "iod_west_10s_10n_50e_70e minus its 1991-2020 mean for the same calendar day (Feb 29 uses Feb 28's normal), degrees Celsius",
         "iod_east_10s_0_90e_110e_anom_1991_2020": "iod_east_10s_0_90e_110e minus its 1991-2020 mean for the same calendar day (Feb 29 uses Feb 28's normal), degrees Celsius",
-        "world_60s_60n_rank_warmest_for_day": "Rank of world_60s_60n among the same calendar day of every year up to and including this one (1 = warmest), counting only this year and earlier years, so the value never changes once published. Feb 29 is ranked among leap years only",
+        "world_60s_60n_rank_warmest_for_day": "Rank of world_60s_60n among the same calendar day of every year up to and including this one (1 = warmest), counting only this year and earlier years, so later years never change it (a recent day can still move while its value is inside the source revision window). Feb 29 is ranked among leap years only",
         "world_60s_60n_record_warm_for_day": "True when world_60s_60n is warmer than on the same calendar day of every earlier year; empty until 10 earlier years exist for that day",
-        "world_90s_90n_rank_warmest_for_day": "Rank of world_90s_90n among the same calendar day of every year up to and including this one (1 = warmest), counting only this year and earlier years, so the value never changes once published. Feb 29 is ranked among leap years only",
+        "world_90s_90n_rank_warmest_for_day": "Rank of world_90s_90n among the same calendar day of every year up to and including this one (1 = warmest), counting only this year and earlier years, so later years never change it (a recent day can still move while its value is inside the source revision window). Feb 29 is ranked among leap years only",
         "world_90s_90n_record_warm_for_day": "True when world_90s_90n is warmer than on the same calendar day of every earlier year; empty until 10 earlier years exist for that day",
         "dmi": "Dipole Mode Index of the Indian Ocean Dipole: western-pole anomaly minus eastern-pole anomaly (Saji et al. 1999), degrees Celsius; positive = positive IOD",
         "nino34_minus_tropics_anom": "Niño 3.4 anomaly minus the tropical (20S-20N) mean anomaly, degrees Celsius. The relative Niño 3.4 behind NOAA CPC's RONI, without CPC's variance scaling or 3-month averaging"
@@ -80,7 +80,7 @@
         "global_2t_clim_1991_2020": "C3S daily climatology for 1991-2020 for this calendar day, degrees Celsius",
         "global_2t_anom_1991_2020": "global_2t minus global_2t_clim_1991_2020 as published by C3S, degrees Celsius",
         "status": "final, or preliminary for the most recent days (based on ERA5 data not yet final; usually revised slightly within a few days)",
-        "global_rank_warmest_for_day": "Rank of global_2t among the same calendar day of every year up to and including this one (1 = warmest), counting only this year and earlier years, so the value never changes once published. Feb 29 is ranked among leap years only",
+        "global_rank_warmest_for_day": "Rank of global_2t among the same calendar day of every year up to and including this one (1 = warmest), counting only this year and earlier years, so later years never change it (a recent day can still move while its value is inside the source revision window). Feb 29 is ranked among leap years only",
         "global_record_warm_for_day": "True when global_2t is warmer than on the same calendar day of every earlier year; empty until 10 earlier years exist for that day"
       }
     },

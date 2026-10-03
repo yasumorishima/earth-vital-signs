@@ -13,7 +13,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 C = "degrees Celsius"
 ANOM = "minus its 1991-2020 mean for the same calendar day (Feb 29 uses Feb 28's normal)"
-CAUSAL = ("counting only this year and earlier years, so the value never changes once published. Feb 29 is "
+CAUSAL = ("counting only this year and earlier years, so later years never change it (a recent day can still move while its value is inside the source revision window). Feb 29 is "
           "ranked among leap years only")
 
 SST_REGIONS = {

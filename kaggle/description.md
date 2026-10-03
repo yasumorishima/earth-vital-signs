@@ -21,7 +21,7 @@ Notebooks: [a first look](https://www.kaggle.com/code/yasunorim/earth-vital-sign
 
 ## What you can do with it
 
-- See whether today is a record: sea ice (each hemisphere and global), the 60S-60N and global SST, and global air temperature have the rank of each day's value among all years for the same calendar day, and a record flag (CO2 has a record-high flag). The rank counts only the years up to the row's own, so it never changes once published and can be used as a model target without look-ahead.
+- See whether today is a record: sea ice (each hemisphere and global), the 60S-60N and global SST, and global air temperature have the rank of each day's value among all years for the same calendar day, and a record flag (CO2 has a record-high flag). The rank counts only the years up to the row's own, so later years never change it (only a recent day can move, while the source may still revise its value) and it can be used as a model target without look-ahead.
 - Track El Niño day by day: Niño 3.4 SST is daily here, while NOAA publishes it weekly and the ONI monthly.
 - Study links between the ocean, the atmosphere and the ice: the monthly panel lines up ENSO, the Indian Ocean Dipole, the Arctic Oscillation, sea ice, air and sea temperature and greenhouse gases.
 
