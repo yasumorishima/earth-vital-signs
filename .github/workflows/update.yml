@@ -89,6 +89,32 @@ jobs:
         run: |
           pip install kaggle==2.2.4
           set -o pipefail
+          # the version number before this upload, so the next step can wait for the new one
+          prev=$(kaggle datasets status --format 'json(current_version_number)' yasunorim/earth-vital-signs-daily | jq -er .current_version_number)
+          echo "KAGGLE_PREV_VERSION=$prev" >> "$GITHUB_ENV"
           kaggle datasets version -p _build -m "Data through $(jq -r '.sst_daily.last_date' data/summary.json)" --dir-mode zip 2>&1 | tee kaggle.log
           # the CLI can print a rejected upload and still exit 0
           if grep -qiE "error|unsuccessful" kaggle.log; then exit 1; fi
+
+      # The records notebook reads the latest dataset version, so it is re-run once that version
+      # has finished processing; otherwise it would show the previous day.
+      - name: Re-run the records notebook on Kaggle
+        if: >-
+          inputs.publish ||
+          (github.event_name == 'schedule' && vars.KAGGLE_PUBLISH == 'true' && steps.commit.outputs.changed == 'true')
+        env:
+          KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
+          KAGGLE_KEY: ${{ secrets.KAGGLE_KEY }}
+        run: |
+          # `status` reports the current version: wait until it is newer than before the upload and ready
+          for i in $(seq 1 40); do
+            js=$(kaggle datasets status --format 'json(status,current_version_number)' yasunorim/earth-vital-signs-daily 2>/dev/null || true)
+            echo "status: $js (before upload: version $KAGGLE_PREV_VERSION)"
+            ok=$(echo "$js" | jq -r --argjson p "$KAGGLE_PREV_VERSION" 'select(.status == "ready" and .current_version_number > $p) | "ok"' 2>/dev/null || true)
+            if [ "$ok" = ok ]; then break; fi
+            if [ "$i" = 40 ]; then echo "new dataset version not ready after 20 minutes"; exit 1; fi
+            sleep 30
+          done
+          set -o pipefail
+          kaggle kernels push -p notebooks/todays-records 2>&1 | tee kernel.log
+          if grep -qiE "error|unsuccessful" kernel.log; then exit 1; fi
