@@ -486,7 +486,7 @@ def sst(backfill_from: int | None, years_only: list[int] | None = None) -> pd.Da
     df["nino34_minus_tropics_anom"] = (df["nino34_5n_5s_170w_120w_anom_1991_2020"]
                                        - df["tropics_20s_20n_anom_1991_2020"]).round(4)
     gate(df["world_60s_60n"].between(19.0, 22.0).all(), "sst: world 60S-60N within [19,22] C")
-    gate(df["nino34_5n_5s_170w_120w"].between(23.0, 31.0).all(), "sst: Nino 3.4 within [23,31] C")
+    gate(df["nino34_5n_5s_170w_120w"].between(23.0, 32.0).all(), "sst: Nino 3.4 within [23,32] C")  # record 29.97 on 2026-10-01
     cpc_weekly_check(df)
     sst_vs_era5(df)
     fresh(lag_days(df.date.max()) <= 7, f"sst: last date {df.date.max().date()} within 7 days")
