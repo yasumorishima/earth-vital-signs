@@ -2,7 +2,7 @@ name: Update data
 
 on:
   schedule:
-    - cron: '30 6 * * *'   # 06:30 UTC daily; NSIDC and GML post the previous day overnight (US time)
+    - cron: '17 6 * * *'   # 06:17 UTC daily (off the :00/:30 marks; GitHub delays or drops scheduled runs under load); NSIDC and GML post the previous day overnight (US time)
   workflow_dispatch:
     inputs:
       memo:
