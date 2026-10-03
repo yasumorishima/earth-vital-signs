@@ -1,6 +1,6 @@
 {
   "sea_ice_extent_daily": {
-    "rows": 31714,
+    "rows": 47571,
     "last_date": "2026-10-01"
   },
   "co2_daily_mauna_loa": {
@@ -14,6 +14,22 @@
   "sst_daily": {
     "rows": 16467,
     "last_date": "2026-10-01"
+  },
+  "air_temperature_daily": {
+    "rows": 31685,
+    "last_date": "2026-09-30"
+  },
+  "enso_monthly": {
+    "rows": 919,
+    "last_date": "2026-07-01"
+  },
+  "atmosphere_indices_daily": {
+    "rows": 28032,
+    "last_date": "2026-09-30"
+  },
+  "climate_monthly_panel": {
+    "rows": 921,
+    "last_date": "2026-09-01"
   },
   "stale_sources": []
 }

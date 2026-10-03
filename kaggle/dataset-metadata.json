@@ -13,11 +13,11 @@
     "time series analysis"
   ],
   "expectedUpdateFrequency": "daily",
-  "description": "Four headline climate indicators in tidy CSV, rebuilt every day by GitHub Actions from the original NOAA and NSIDC files.\n\nThe popular Kaggle copies of these series stopped updating in 2017-2019. This one is regenerated daily, and a version is only published after automated checks pass: dates unique and complete, values in a plausible range, the latest date recent, and every previously published row older than the revision window unchanged. Sea surface temperature means are computed here from the full 0.25-degree NOAA OISST v2.1 grid (cos-latitude weighted) and cross-checked each run against a second, independent copy of the same day from NCEI.\n\nSource code and the full history of every update: https://github.com/yasumorishima/earth-vital-signs\n\n## Files\n\n- `sea_ice_extent_daily.csv` - Arctic and Antarctic sea ice extent, 1978-10-26 to present (every other day until 1987-08)\n- `co2_daily_mauna_loa.csv` - daily mean CO2 at Mauna Loa, 1974 to present\n- `greenhouse_gases_monthly.csv` - monthly CO2 (Mauna Loa and global), CH4, N2O and SF6 (global marine surface)\n- `sst_daily.csv` - daily mean sea surface temperature for 60S-60N and the North Atlantic (0-60N, 0-80W), 1981-09-01 to present, with anomalies against 1991-2020\n\n## Sources and citation\n\nThe data are produced by the organizations below, which ask to be cited. Please cite them, not this dataset, in any publication.\n\n- Sea ice: Fetterer, F., Knowles, K., Meier, W. N., Savoie, M., Windnagel, A. K. & Stafford, T. (2025). Sea Ice Index (G02135, Version 4). Boulder, Colorado USA. NSIDC: National Snow and Ice Data Center. https://doi.org/10.7265/a98x-0f50\n- Mauna Loa CO2: Dr. Xin Lan, NOAA/GML (gml.noaa.gov/ccgg/trends/) and Dr. Ralph Keeling, Scripps Institution of Oceanography (scrippsco2.ucsd.edu/). Monthly values before 1974-05 are Scripps measurements.\n- Global greenhouse gases: Lan, X., Tans, P. and K.W. Thoning: Trends in globally-averaged CO2 determined from NOAA Global Monitoring Laboratory measurements. https://doi.org/10.15138/9N0H-ZH07 (and the corresponding CH4, N2O and SF6 pages at https://gml.noaa.gov/ccgg/trends/)\n- Sea surface temperature: NOAA OISST v2.1 (Huang, B. et al. 2021, J. Climate, doi:10.1175/JCLI-D-20-0166.1). Data provided by the NOAA PSL, Boulder, Colorado, USA, from their website at https://psl.noaa.gov\n\n## License\n\nThe values are redistributed under the terms of each source, which make them freely available and require attribution as above. The derived SST means and the build code are MIT-licensed (see the GitHub repository).\n\n## Notes\n\n- Recent values can be revised by the source (preliminary SST for about two weeks, CO2 after calibration). Rows older than the revision window are frozen; the checks stop the update if a source rewrites them.\n- Monthly global gas averages lag by a few months, as published by NOAA GML.\n- This dataset is not affiliated with NOAA or NSIDC.",
+  "description": "The planet's headline climate indicators in tidy CSV, rebuilt every day by GitHub Actions from the original NOAA, NSIDC and Copernicus files: sea ice, CO2 and other greenhouse gases, sea surface temperature for 11 ocean regions (including the four Niño boxes and the Indian Ocean Dipole), global air temperature since 1940, ENSO and atmospheric circulation indices, and one monthly table that puts all of them side by side.\n\nThe popular Kaggle copies of these series stopped updating in 2017-2019. This one is regenerated daily, and a version is only published after automated checks pass.\n\nSource code and the full history of every update: https://github.com/yasumorishima/earth-vital-signs\n\n## Files\n\n| File | What | From | Rows |\n|---|---|---|---|\n| `sea_ice_extent_daily.csv` | Arctic, Antarctic and global sea ice extent, with anomaly, rank for the date, record-low flag and year-over-year change | 1978-10-26 | ~47,000 |\n| `co2_daily_mauna_loa.csv` | Daily CO2 at Mauna Loa, with year-over-year change and record-high flag | 1974-05 | ~16,000 |\n| `greenhouse_gases_monthly.csv` | Monthly CO2 (Mauna Loa, global), CH4, N2O, SF6, with annual growth | 1958 / 1979+ | ~2,600 |\n| `sst_daily.csv` | Daily sea surface temperature for 11 regions with 1991-2020 anomalies, records, Indian Ocean Dipole index and relative Niño 3.4 | 1981-09-01 | ~16,500 |\n| `air_temperature_daily.csv` | Daily global 2 m air temperature (ERA5) with the 1991-2020 anomaly, rank for the date and record flag | 1940-01-01 | ~31,700 |\n| `enso_monthly.csv` | Oceanic Niño Index (ONI) and Relative ONI (RONI) | 1950 | ~920 |\n| `atmosphere_indices_daily.csv` | Daily Arctic Oscillation, North Atlantic Oscillation, Pacific-North American and Antarctic Oscillation | 1950-01-01 | ~28,000 |\n| `climate_monthly_panel.csv` | All of the above as monthly columns, one row per month: ready for correlation, regression and forecasting | 1950-01 | ~920 |\n\n## What you can do with it\n\n- See whether today is a record: sea ice (each hemisphere and global), the 60S-60N and global SST, and global air temperature have the rank of each day's value among all years for the same calendar day, and a record flag (CO2 has a record-high flag). The rank counts only the years up to the row's own, so it never changes once published and can be used as a model target without look-ahead.\n- Track El Niño day by day: Niño 3.4 SST is daily here, while NOAA publishes it weekly and the ONI monthly.\n- Study links between the ocean, the atmosphere and the ice: the monthly panel lines up ENSO, the Indian Ocean Dipole, the Arctic Oscillation, sea ice, air and sea temperature and greenhouse gases.\n\n## How each update is checked\n\n- Dates are unique; the daily SST and air temperature series have no missing days, and every region is defined every day.\n- Values are inside a plausible physical range; the latest date is recent (a source that silently stopped is flagged).\n- Every published row older than its revision window is still present and unchanged. Sources revise recent values (preliminary SST for about two weeks, CO2 after calibration), so only older rows are frozen. NOAA CPC re-normalizes its indices, so for those only the rows are guaranteed, not the values.\n- SST means are computed here from the full 0.25-degree OISST v2.1 grid. Each run recomputes one finalized day from NCEI's separate per-day file (all 11 regions within 0.005 C), compares the Niño-box 7-day means with NOAA CPC's weekly Niño SST over the last year, and compares the 60S-60N anomaly with ERA5's independent SST.\n\n## Sources and citation\n\nThe data are produced by the organizations below, which ask to be cited. Please cite them, not this dataset, in any publication.\n\n- Sea ice: Fetterer, F., Knowles, K., Meier, W. N., Savoie, M., Windnagel, A. K. & Stafford, T. (2025). Sea Ice Index (G02135, Version 4). Boulder, Colorado USA. NSIDC: National Snow and Ice Data Center. https://doi.org/10.7265/a98x-0f50\n- Mauna Loa CO2: Dr. Xin Lan, NOAA/GML (gml.noaa.gov/ccgg/trends/) and Dr. Ralph Keeling, Scripps Institution of Oceanography (scrippsco2.ucsd.edu/). Monthly values before 1974-05 are Scripps measurements.\n- Global greenhouse gases: Lan, X., Tans, P. and K.W. Thoning: Trends in globally-averaged CO2 determined from NOAA Global Monitoring Laboratory measurements. https://doi.org/10.15138/9N0H-ZH07 (and the corresponding CH4, N2O and SF6 pages at https://gml.noaa.gov/ccgg/trends/)\n- Sea surface temperature: NOAA OISST v2.1 (Huang, B. et al. 2021, J. Climate, doi:10.1175/JCLI-D-20-0166.1). Data provided by the NOAA PSL, Boulder, Colorado, USA, from their website at https://psl.noaa.gov\n- Air temperature: ERA5 daily global mean 2 m temperature from Copernicus Climate Pulse (https://pulse.climate.copernicus.eu). Generated using Copernicus Climate Change Service information 2026. ERA5: Hersbach, H. et al. (2020), Q. J. R. Meteorol. Soc., 146, 1999-2049, doi:10.1002/qj.3803. Copernicus data are free and open, with attribution as above.\n- ENSO and circulation indices: NOAA Climate Prediction Center (https://www.cpc.ncep.noaa.gov). Indian Ocean Dipole definition: Saji, N. H. et al. (1999), Nature 401, 360-363.\n\n## License\n\nThe values are redistributed under the terms of each source, which make them freely available and ask for the attribution above. The regional means, anomalies, ranks and the build code are MIT-licensed (see the GitHub repository).\n\n## Notes\n\n- Air temperature is ERA5 reanalysis, a model-based estimate; its absolute level differs between reanalyses, so compare anomalies rather than absolute values with other sources. The most recent days are marked preliminary and can change slightly. (NCEP/NCAR Reanalysis 1, used by many older datasets, stopped on 2026-03-17.)\n- ERA5's own 60S-60N SST is compared with the OISST-based `world_60s_60n` anomaly on every run as an independent check.\n- Monthly global gas averages lag by a few months, as published by NOAA GML. CPC's teleconnection files are updated with a few days' lag.\n- This dataset is not affiliated with NOAA, NSIDC, NCEP, ECMWF or Copernicus.",
   "resources": [
     {
       "path": "sea_ice_extent_daily.csv",
-      "description": "Daily sea ice extent for each hemisphere from the NSIDC Sea Ice Index v4.",
+      "description": "Daily sea ice extent for the Arctic, the Antarctic and both combined (NSIDC Sea Ice Index v4), with the anomaly, the rank for the calendar day, a record-low flag and the change from a year earlier.",
       "schema": {
         "fields": [
           {
@@ -28,7 +28,7 @@
           {
             "name": "hemisphere",
             "type": "string",
-            "description": "north (Arctic) or south (Antarctic)"
+            "description": "north (Arctic), south (Antarctic) or global (north + south, on days both are reported)"
           },
           {
             "name": "extent_mkm2",
@@ -43,14 +43,34 @@
           {
             "name": "extent_5day_mean_mkm2",
             "type": "number",
-            "description": "Trailing 5-day mean of extent as used in NSIDC charts; empty where the 5 previous days are not all present (every-other-day era before 1987-08)"
+            "description": "Trailing 5-day mean of extent (this day and the 4 before) as used in NSIDC charts; empty where those 5 days are not all present (every-other-day era before 1987-08)"
+          },
+          {
+            "name": "extent_anom_1991_2020_mkm2",
+            "type": "number",
+            "description": "extent_mkm2 minus its 1991-2020 mean for the same calendar day (Feb 29 uses Feb 28's normal), million square kilometres"
+          },
+          {
+            "name": "rank_lowest_for_day",
+            "type": "integer",
+            "description": "Rank of extent_mkm2 among the same calendar day of every year up to and including this one (1 = lowest), counting only this year and earlier years, so the value never changes once published. Feb 29 is ranked among leap years only"
+          },
+          {
+            "name": "record_low_for_day",
+            "type": "boolean",
+            "description": "True when extent is below the same calendar day of every earlier year (a record low for the date); empty until 10 earlier years exist for that day"
+          },
+          {
+            "name": "yoy_change_mkm2",
+            "type": "number",
+            "description": "extent_mkm2 minus the value on the same date one year earlier; empty if that day was not observed (and on Feb 29)"
           }
         ]
       }
     },
     {
       "path": "co2_daily_mauna_loa.csv",
-      "description": "Daily mean atmospheric CO2 at Mauna Loa Observatory (NOAA GML); days without valid measurements are absent.",
+      "description": "Daily mean atmospheric CO2 at Mauna Loa Observatory (NOAA GML); days without valid measurements are absent. With the change from a year earlier and a record-high flag.",
       "schema": {
         "fields": [
           {
@@ -67,6 +87,16 @@
             "name": "co2_ppm",
             "type": "number",
             "description": "Daily mean CO2 mole fraction, parts per million (dry air)"
+          },
+          {
+            "name": "yoy_change_ppm",
+            "type": "number",
+            "description": "co2_ppm minus the value on the same date one year earlier, ppm; empty when either day has no measurement (Mauna Loa has gaps, e.g. 2025-09-27 to 10-06)"
+          },
+          {
+            "name": "record_high",
+            "type": "boolean",
+            "description": "True when co2_ppm is above every earlier daily value in the file"
           }
         ]
       }
@@ -100,13 +130,18 @@
             "name": "interpolated",
             "type": "boolean",
             "description": "co2_mlo only, from 1974-05: True where NOAA filled a missing month by interpolation (negative stdev in the source file); empty for other series and for the Scripps months before 1974-05"
+          },
+          {
+            "name": "yoy_change",
+            "type": "number",
+            "description": "average minus the same month one year earlier, in the series' unit (the annual growth)"
           }
         ]
       }
     },
     {
       "path": "sst_daily.csv",
-      "description": "Daily area-weighted mean sea surface temperature computed from NOAA OISST v2.1 (0.25 degree, cos-latitude weights, ocean cells only).",
+      "description": "Daily area-weighted mean sea surface temperature for 11 ocean regions, computed from the full NOAA OISST v2.1 0.25-degree grid (cos-latitude weights, ocean cells only), with anomalies, records and two climate indices (Indian Ocean Dipole, relative Niño 3.4).",
       "schema": {
         "fields": [
           {
@@ -117,22 +152,359 @@
           {
             "name": "world_60s_60n",
             "type": "number",
-            "description": "Mean SST between 60S and 60N, degrees Celsius"
+            "description": "Mean SST over 60S-60N, all longitudes (the near-global series least affected by sea ice), degrees Celsius"
           },
           {
             "name": "north_atlantic_0_60n_0_80w",
             "type": "number",
-            "description": "Mean SST over 0-60N, 80W-0, degrees Celsius"
+            "description": "Mean SST over North Atlantic, 0-60N, 80W-0, degrees Celsius"
+          },
+          {
+            "name": "world_90s_90n",
+            "type": "number",
+            "description": "Mean SST over the whole globe, 90S-90N (cells under sea ice carry OISST's freezing-point value), degrees Celsius"
+          },
+          {
+            "name": "tropics_20s_20n",
+            "type": "number",
+            "description": "Mean SST over tropics, 20S-20N, all longitudes, degrees Celsius"
+          },
+          {
+            "name": "north_pacific_20n_60n_120e_110w",
+            "type": "number",
+            "description": "Mean SST over North Pacific, 20N-60N, 120E-110W, degrees Celsius"
+          },
+          {
+            "name": "nino12_0_10s_90w_80w",
+            "type": "number",
+            "description": "Mean SST over Niño 1+2 box, 0-10S, 90W-80W (NOAA CPC definition), degrees Celsius"
+          },
+          {
+            "name": "nino3_5n_5s_150w_90w",
+            "type": "number",
+            "description": "Mean SST over Niño 3 box, 5N-5S, 150W-90W (NOAA CPC definition), degrees Celsius"
+          },
+          {
+            "name": "nino34_5n_5s_170w_120w",
+            "type": "number",
+            "description": "Mean SST over Niño 3.4 box, 5N-5S, 170W-120W (NOAA CPC definition; the main ENSO box), degrees Celsius"
+          },
+          {
+            "name": "nino4_5n_5s_160e_150w",
+            "type": "number",
+            "description": "Mean SST over Niño 4 box, 5N-5S, 160E-150W (NOAA CPC definition), degrees Celsius"
+          },
+          {
+            "name": "iod_west_10s_10n_50e_70e",
+            "type": "number",
+            "description": "Mean SST over western pole of the Indian Ocean Dipole, 10S-10N, 50E-70E (Saji et al. 1999), degrees Celsius"
+          },
+          {
+            "name": "iod_east_10s_0_90e_110e",
+            "type": "number",
+            "description": "Mean SST over eastern pole of the Indian Ocean Dipole, 10S-0, 90E-110E (Saji et al. 1999), degrees Celsius"
           },
           {
             "name": "world_60s_60n_anom_1991_2020",
             "type": "number",
-            "description": "world_60s_60n minus its 1991-2020 mean for the same calendar day (Feb 29 uses Feb 28), degrees Celsius"
+            "description": "world_60s_60n minus its 1991-2020 mean for the same calendar day (Feb 29 uses Feb 28's normal), degrees Celsius"
           },
           {
             "name": "north_atlantic_0_60n_0_80w_anom_1991_2020",
             "type": "number",
-            "description": "North Atlantic mean minus its 1991-2020 mean for the same calendar day, degrees Celsius"
+            "description": "north_atlantic_0_60n_0_80w minus its 1991-2020 mean for the same calendar day (Feb 29 uses Feb 28's normal), degrees Celsius"
+          },
+          {
+            "name": "world_90s_90n_anom_1991_2020",
+            "type": "number",
+            "description": "world_90s_90n minus its 1991-2020 mean for the same calendar day (Feb 29 uses Feb 28's normal), degrees Celsius"
+          },
+          {
+            "name": "tropics_20s_20n_anom_1991_2020",
+            "type": "number",
+            "description": "tropics_20s_20n minus its 1991-2020 mean for the same calendar day (Feb 29 uses Feb 28's normal), degrees Celsius"
+          },
+          {
+            "name": "north_pacific_20n_60n_120e_110w_anom_1991_2020",
+            "type": "number",
+            "description": "north_pacific_20n_60n_120e_110w minus its 1991-2020 mean for the same calendar day (Feb 29 uses Feb 28's normal), degrees Celsius"
+          },
+          {
+            "name": "nino12_0_10s_90w_80w_anom_1991_2020",
+            "type": "number",
+            "description": "nino12_0_10s_90w_80w minus its 1991-2020 mean for the same calendar day (Feb 29 uses Feb 28's normal), degrees Celsius"
+          },
+          {
+            "name": "nino3_5n_5s_150w_90w_anom_1991_2020",
+            "type": "number",
+            "description": "nino3_5n_5s_150w_90w minus its 1991-2020 mean for the same calendar day (Feb 29 uses Feb 28's normal), degrees Celsius"
+          },
+          {
+            "name": "nino34_5n_5s_170w_120w_anom_1991_2020",
+            "type": "number",
+            "description": "nino34_5n_5s_170w_120w minus its 1991-2020 mean for the same calendar day (Feb 29 uses Feb 28's normal), degrees Celsius"
+          },
+          {
+            "name": "nino4_5n_5s_160e_150w_anom_1991_2020",
+            "type": "number",
+            "description": "nino4_5n_5s_160e_150w minus its 1991-2020 mean for the same calendar day (Feb 29 uses Feb 28's normal), degrees Celsius"
+          },
+          {
+            "name": "iod_west_10s_10n_50e_70e_anom_1991_2020",
+            "type": "number",
+            "description": "iod_west_10s_10n_50e_70e minus its 1991-2020 mean for the same calendar day (Feb 29 uses Feb 28's normal), degrees Celsius"
+          },
+          {
+            "name": "iod_east_10s_0_90e_110e_anom_1991_2020",
+            "type": "number",
+            "description": "iod_east_10s_0_90e_110e minus its 1991-2020 mean for the same calendar day (Feb 29 uses Feb 28's normal), degrees Celsius"
+          },
+          {
+            "name": "world_60s_60n_rank_warmest_for_day",
+            "type": "integer",
+            "description": "Rank of world_60s_60n among the same calendar day of every year up to and including this one (1 = warmest), counting only this year and earlier years, so the value never changes once published. Feb 29 is ranked among leap years only"
+          },
+          {
+            "name": "world_60s_60n_record_warm_for_day",
+            "type": "boolean",
+            "description": "True when world_60s_60n is warmer than on the same calendar day of every earlier year; empty until 10 earlier years exist for that day"
+          },
+          {
+            "name": "world_90s_90n_rank_warmest_for_day",
+            "type": "integer",
+            "description": "Rank of world_90s_90n among the same calendar day of every year up to and including this one (1 = warmest), counting only this year and earlier years, so the value never changes once published. Feb 29 is ranked among leap years only"
+          },
+          {
+            "name": "world_90s_90n_record_warm_for_day",
+            "type": "boolean",
+            "description": "True when world_90s_90n is warmer than on the same calendar day of every earlier year; empty until 10 earlier years exist for that day"
+          },
+          {
+            "name": "dmi",
+            "type": "number",
+            "description": "Dipole Mode Index of the Indian Ocean Dipole: western-pole anomaly minus eastern-pole anomaly (Saji et al. 1999), degrees Celsius; positive = positive IOD"
+          },
+          {
+            "name": "nino34_minus_tropics_anom",
+            "type": "number",
+            "description": "Niño 3.4 anomaly minus the tropical (20S-20N) mean anomaly, degrees Celsius. The relative Niño 3.4 behind NOAA CPC's RONI, without CPC's variance scaling or 3-month averaging"
+          }
+        ]
+      }
+    },
+    {
+      "path": "air_temperature_daily.csv",
+      "description": "Daily global mean 2 m air temperature from ERA5 (Copernicus Climate Change Service, via Climate Pulse), 1940 to present, with C3S's 1991-2020 climatology and anomaly, the rank for the calendar day and a record flag.",
+      "schema": {
+        "fields": [
+          {
+            "name": "date",
+            "type": "datetime",
+            "description": "Date (UTC), YYYY-MM-DD"
+          },
+          {
+            "name": "global_2t",
+            "type": "number",
+            "description": "Daily global mean near-surface (2 m) air temperature from ERA5 hourly values, degrees Celsius"
+          },
+          {
+            "name": "global_2t_clim_1991_2020",
+            "type": "number",
+            "description": "C3S daily climatology for 1991-2020 for this calendar day, degrees Celsius"
+          },
+          {
+            "name": "global_2t_anom_1991_2020",
+            "type": "number",
+            "description": "global_2t minus global_2t_clim_1991_2020 as published by C3S, degrees Celsius"
+          },
+          {
+            "name": "status",
+            "type": "string",
+            "description": "final, or preliminary for the most recent days (based on ERA5 data not yet final; usually revised slightly within a few days)"
+          },
+          {
+            "name": "global_rank_warmest_for_day",
+            "type": "integer",
+            "description": "Rank of global_2t among the same calendar day of every year up to and including this one (1 = warmest), counting only this year and earlier years, so the value never changes once published. Feb 29 is ranked among leap years only"
+          },
+          {
+            "name": "global_record_warm_for_day",
+            "type": "boolean",
+            "description": "True when global_2t is warmer than on the same calendar day of every earlier year; empty until 10 earlier years exist for that day"
+          }
+        ]
+      }
+    },
+    {
+      "path": "enso_monthly.csv",
+      "description": "El Niño-Southern Oscillation indices from NOAA CPC: the Oceanic Niño Index (ONI) and the Relative ONI (RONI), which NOAA uses for official ENSO monitoring per NWS Public Information Statement 26-05. One row per overlapping 3-month season.",
+      "schema": {
+        "fields": [
+          {
+            "name": "date",
+            "type": "datetime",
+            "description": "First day of the centre month of the 3-month season (e.g. DJF 1950 -> 1950-01-01)"
+          },
+          {
+            "name": "season",
+            "type": "string",
+            "description": "3-month season label as published by CPC (DJF, JFM, ... NDJ)"
+          },
+          {
+            "name": "oni_total_c",
+            "type": "number",
+            "description": "Niño 3.4 SST from ERSSTv5, 3-month mean, degrees Celsius"
+          },
+          {
+            "name": "oni_anom",
+            "type": "number",
+            "description": "ONI: 3-month mean Niño 3.4 anomaly as published by CPC, degrees Celsius. El Niño conditions at +0.5 or above, La Niña at -0.5 or below"
+          },
+          {
+            "name": "roni_anom",
+            "type": "number",
+            "description": "RONI: ONI-style index of the Niño 3.4 anomaly relative to the tropical mean, as published by CPC, degrees Celsius"
+          }
+        ]
+      }
+    },
+    {
+      "path": "atmosphere_indices_daily.csv",
+      "description": "Daily standardized atmospheric circulation indices from NOAA CPC: Arctic Oscillation, North Atlantic Oscillation, Pacific-North American pattern and Antarctic Oscillation.",
+      "schema": {
+        "fields": [
+          {
+            "name": "date",
+            "type": "datetime",
+            "description": "Date, YYYY-MM-DD"
+          },
+          {
+            "name": "ao",
+            "type": "number",
+            "description": "Arctic Oscillation index (1000 hPa height), standardized, unitless"
+          },
+          {
+            "name": "nao",
+            "type": "number",
+            "description": "North Atlantic Oscillation index (500 hPa height), standardized, unitless"
+          },
+          {
+            "name": "pna",
+            "type": "number",
+            "description": "Pacific-North American pattern index (500 hPa height), standardized, unitless"
+          },
+          {
+            "name": "aao",
+            "type": "number",
+            "description": "Antarctic Oscillation (Southern Annular Mode) index (700 hPa height), standardized, unitless; from 1979"
+          }
+        ]
+      }
+    },
+    {
+      "path": "climate_monthly_panel.csv",
+      "description": "Every indicator side by side, one row per month from 1950: monthly means of the daily tables plus the monthly gases and ENSO indices. Ready for correlation, regression or forecasting. Daily-derived columns are filled only when at least 90% of the month's days are present (40% for sea ice, observed every other day before 1987-08); empty otherwise.",
+      "schema": {
+        "fields": [
+          {
+            "name": "date",
+            "type": "datetime",
+            "description": "First day of the month, YYYY-MM-DD"
+          },
+          {
+            "name": "air_temp_global_anom",
+            "type": "number",
+            "description": "Monthly mean of air_temperature_daily.global_2t_anom_1991_2020 (ERA5), degrees Celsius"
+          },
+          {
+            "name": "sst_world_60s_60n_anom",
+            "type": "number",
+            "description": "Monthly mean of sst_daily.world_60s_60n_anom_1991_2020, degrees Celsius"
+          },
+          {
+            "name": "sst_nino34_anom",
+            "type": "number",
+            "description": "Monthly mean of sst_daily.nino34_5n_5s_170w_120w_anom_1991_2020, degrees Celsius"
+          },
+          {
+            "name": "sst_dmi",
+            "type": "number",
+            "description": "Monthly mean of sst_daily.dmi (Indian Ocean Dipole), degrees Celsius"
+          },
+          {
+            "name": "sea_ice_north_mkm2",
+            "type": "number",
+            "description": "Monthly mean Arctic sea ice extent, million square kilometres"
+          },
+          {
+            "name": "sea_ice_south_mkm2",
+            "type": "number",
+            "description": "Monthly mean Antarctic sea ice extent, million square kilometres"
+          },
+          {
+            "name": "sea_ice_north_anom_mkm2",
+            "type": "number",
+            "description": "Monthly mean Arctic extent anomaly against 1991-2020, million km2"
+          },
+          {
+            "name": "sea_ice_south_anom_mkm2",
+            "type": "number",
+            "description": "Monthly mean Antarctic extent anomaly against 1991-2020, million km2"
+          },
+          {
+            "name": "ao",
+            "type": "number",
+            "description": "Monthly mean of the daily Arctic Oscillation index"
+          },
+          {
+            "name": "nao",
+            "type": "number",
+            "description": "Monthly mean of the daily North Atlantic Oscillation index"
+          },
+          {
+            "name": "pna",
+            "type": "number",
+            "description": "Monthly mean of the daily Pacific-North American index"
+          },
+          {
+            "name": "aao",
+            "type": "number",
+            "description": "Monthly mean of the daily Antarctic Oscillation index"
+          },
+          {
+            "name": "co2_mlo_ppm",
+            "type": "number",
+            "description": "Monthly mean CO2 at Mauna Loa, ppm"
+          },
+          {
+            "name": "co2_global_ppm",
+            "type": "number",
+            "description": "Monthly global marine surface CO2, ppm"
+          },
+          {
+            "name": "ch4_global_ppb",
+            "type": "number",
+            "description": "Monthly global methane, ppb"
+          },
+          {
+            "name": "n2o_global_ppb",
+            "type": "number",
+            "description": "Monthly global nitrous oxide, ppb"
+          },
+          {
+            "name": "sf6_global_ppt",
+            "type": "number",
+            "description": "Monthly global sulfur hexafluoride, ppt"
+          },
+          {
+            "name": "oni_anom",
+            "type": "number",
+            "description": "ONI for the 3-month season centred on this month"
+          },
+          {
+            "name": "roni_anom",
+            "type": "number",
+            "description": "RONI for the 3-month season centred on this month"
           }
         ]
       }
