@@ -16,8 +16,8 @@
     "last_date": "2026-10-01"
   },
   "air_temperature_daily": {
-    "rows": 31685,
-    "last_date": "2026-09-30"
+    "rows": 31686,
+    "last_date": "2026-10-01"
   },
   "enso_monthly": {
     "rows": 919,
