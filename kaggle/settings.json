@@ -95,7 +95,7 @@
       }
     },
     "atmosphere_indices_daily.csv": {
-      "description": "Daily standardized atmospheric circulation indices from NOAA CPC: Arctic Oscillation, North Atlantic Oscillation, Pacific-North American pattern and Antarctic Oscillation.",
+      "description": "Daily standardized atmospheric circulation indices from NOAA CPC: Arctic Oscillation, North Atlantic Oscillation, Pacific-North American pattern and Antarctic Oscillation. CPC's files are named after NCEP's CDAS analysis, which NCEP replaced with CORe on 2026-03-18; values from then on may come from the new system.",
       "columns": {
         "date": "Date, YYYY-MM-DD",
         "ao": "Arctic Oscillation index (1000 hPa height), standardized, unitless",
