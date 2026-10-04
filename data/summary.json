@@ -12,8 +12,8 @@
     "last_date": "2026-08-01"
   },
   "sst_daily": {
-    "rows": 16468,
-    "last_date": "2026-10-02"
+    "rows": 16469,
+    "last_date": "2026-10-03"
   },
   "air_temperature_daily": {
     "rows": 31687,
@@ -24,8 +24,8 @@
     "last_date": "2026-08-01"
   },
   "atmosphere_indices_daily": {
-    "rows": 28033,
-    "last_date": "2026-10-01"
+    "rows": 28034,
+    "last_date": "2026-10-02"
   },
   "climate_monthly_panel": {
     "rows": 921,
