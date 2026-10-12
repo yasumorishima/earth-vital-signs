@@ -387,6 +387,9 @@ def grid_year(y: int, tmp: Path, url: str, var: str, regions: dict, offset: floa
     return pd.DataFrame(rows)
 
 
+KEPT_LIMIT_DAYS = 14
+
+
 def grid_years(name: str, url: str, var: str, regions: dict, offset: float, first_year: int,
                backfill_from: int | None, years_only: list[int] | None, tmp: Path) -> pd.DataFrame:
     """Recompute the current year (and the previous one until mid-February, to finalize its
@@ -416,9 +419,15 @@ def grid_years(name: str, url: str, var: str, regions: dict, offset: float, firs
             # home line alike, with no notice). In the daily update a refusing server leaves this
             # table exactly as committed, like any stopped source, so the other tables still update;
             # a backfill, or any error that could mean wrong bytes, still fails.
+            # Keeping it is a stopgap, so it fails once the kept table is KEPT_LIMIT_DAYS old:
+            # a permanent refusal must not leave the table frozen behind a warning nobody is sent.
             if not (backfill_from or years_only) and _refused(e) and len(old):
-                fresh(False, f"{name}: {url.format(y=y)} kept refusing ({e}); "
-                             f"keeping the committed table (last date {old.date.max().date()})")
+                why = f"HTTP {e.code}" if isinstance(e, urllib.error.HTTPError) else "no progress"
+                last = pd.Timestamp(old.date.max()).date()
+                fresh(False, f"{name}: {url.format(y=y)} kept refusing ({why}); "
+                             f"keeping the committed table (last date {last})")
+                gate(lag_days(last) <= KEPT_LIMIT_DAYS,
+                     f"{name}: kept table last date {last} within {KEPT_LIMIT_DAYS} days")
                 keep = old[["date"] + [c for c in old.columns if c in regions]].copy()
                 keep["date"] = pd.to_datetime(keep.date)
                 return keep.sort_values("date").reset_index(drop=True)

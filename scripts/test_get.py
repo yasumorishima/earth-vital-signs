@@ -117,33 +117,58 @@ import pandas as pd  # noqa: E402
 
 data = Path(tempfile.mkdtemp())
 build.DATA = data
-committed = pd.DataFrame({"date": pd.date_range("2026-01-01", periods=5), "r": [1.0, 2, 3, 4, 5],
-                          "r_anom_1991_2020": 0.0})
-committed.to_csv(data / "t.csv", index=False)
+
+
+def commit_table(last_days_ago):
+    end = pd.Timestamp(build.TODAY) - pd.Timedelta(days=last_days_ago)
+    pd.DataFrame({"date": pd.date_range(end=end, periods=5), "r": [1.0, 2, 3, 4, 5],
+                  "r_anom_1991_2020": 0.0}).to_csv(data / "t.csv", index=False)
+
+
+commit_table(3)
 
 
 def http(code):
     return urllib.error.HTTPError(url, code, "x", email.message.Message(), None)
 
 
-def grid(name, err, expect, **kw):
+def grid(name, err, expect, real_get=None, **kw):
+    """err is raised by grid_year; with real_get, grid_year downloads through the real get() from the
+    local server in that mode instead. RAISED must be the very error grid_year raised."""
     global ok
+    seen = []
+
     def boom(*a, **k):
+        if real_get:
+            STATE.update(mode=real_get, v=0, served=0, refused=0, whole=False)
+            try:
+                build.get(url, tmp / "grid.nc")
+            except Exception as e:  # noqa: BLE001
+                seen.append(e)
+                raise
+        seen.append(err)
         raise err
     build.grid_year = boom
     build.STALE.clear()
+    build.FAIL.clear()
     try:
         df = build.grid_years("t", "u{y}", "v", {"r": None}, 0.0, 2020, kw.get("backfill"), kw.get("only"), tmp)
         res = ("KEPT" if list(df.columns) == ["date", "r"] and df.r.tolist() == [1.0, 2, 3, 4, 5]
-               and len(build.STALE) == 1 else f"WRONG {list(df.columns)} stale={len(build.STALE)}")
+               and len(build.STALE) == 1 and "bytes" not in build.STALE[0]
+               else f"WRONG {list(df.columns)} stale={build.STALE}")
+        if build.FAIL:
+            res = "KEPT-BUT-GATE-FAILED" if res == "KEPT" else res
     except Exception as e:  # noqa: BLE001
-        res = f"RAISED {type(e).__name__}"
-    good = res.startswith(expect)
+        res = "RAISED" if seen and e is seen[-1] else f"RAISED OTHER {type(e).__name__}: {e}"
+    build.FAIL.clear()
+    good = res == expect
     ok &= good
     print(("PASS" if good else "FAIL"), "grid_years:", name, "->", res)
 
 
 grid("429 in the daily update keeps the committed table", http(429), "KEPT")
+grid("real get(): 429 every time keeps the committed table", None, "KEPT", real_get="429forever")
+grid("real get(): Range ignored still raises", None, "RAISED", real_get="norange")
 grid("503 in the daily update keeps the committed table", http(503), "KEPT")
 grid("stall (no progress) keeps the committed table", OSError("u: no progress at 5 of 9 bytes"), "KEPT")
 grid("server ignoring Range still raises", OSError("u: server ignored Range (status 200)"), "RAISED")
@@ -151,6 +176,10 @@ grid("file kept changing still raises", OSError("u: file kept changing during do
 grid("403 still raises", http(403), "RAISED")
 grid("429 during a backfill still raises", http(429), "RAISED", backfill=2025)
 grid("429 with --sst-years still raises", http(429), "RAISED", only=[2026])
+commit_table(15)
+grid("kept table older than 14 days fails the gate", http(429), "KEPT-BUT-GATE-FAILED")
+commit_table(14)
+grid("kept table exactly 14 days old passes", http(429), "KEPT")
 (data / "t.csv").unlink()
 grid("429 with no committed table still raises", http(429), "RAISED")
 print("ALL PASS" if ok else "SOME FAILED")
