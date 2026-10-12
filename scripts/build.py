@@ -66,6 +66,18 @@ def fresh(ok: bool, msg: str) -> None:
         print(f"::warning title=stale source::{msg}", flush=True)
 
 
+def _retryable(e: urllib.error.HTTPError) -> bool:
+    """5xx, 408 and 429 can clear on their own; other 4xx will not change on retry.
+    NOAA GML answered 429 Too Many Requests to a GitHub runner on 2026-10-12."""
+    return e.code >= 500 or e.code in (408, 429)
+
+
+def _retry_after(e: urllib.error.HTTPError) -> float:
+    """Seconds the server asked us to wait (Retry-After in seconds), capped at 5 minutes."""
+    v = (e.headers.get("Retry-After") or "").strip() if e.headers else ""
+    return min(float(v), 300.0) if v.isdigit() else 0.0
+
+
 def get(url: str, dest: Path | None = None, tries: int = 4) -> bytes | None:
     """Small files are returned as bytes. Large files go to dest and are resumed with HTTP Range:
     the PSL server closes each connection after roughly 11 MB, so a 356 MB year arrives in pieces.
@@ -77,12 +89,10 @@ def get(url: str, dest: Path | None = None, tries: int = 4) -> bytes | None:
                 with urllib.request.urlopen(req, timeout=600) as r:
                     return r.read()
             except urllib.error.HTTPError as e:
-                if e.code < 500:  # 4xx will not change on retry
-                    raise
-                if i == tries - 1:
+                if not _retryable(e) or i == tries - 1:
                     raise
                 print(f"retry {i + 1} {url}: {e}", flush=True)
-                time.sleep(10 * (i + 1))
+                time.sleep(max(10 * (i + 1), _retry_after(e)))
             except Exception as e:  # network errors are retried, then raised
                 if i == tries - 1:
                     raise
@@ -101,6 +111,7 @@ def get(url: str, dest: Path | None = None, tries: int = 4) -> bytes | None:
         if total is not None and have > total:
             raise OSError(f"{url}: got {have} bytes, more than {total}")
         hdr = {"User-Agent": UA}
+        wait = 0.0
         if have:
             hdr["Range"] = f"bytes={have}-"
         try:
@@ -123,8 +134,10 @@ def get(url: str, dest: Path | None = None, tries: int = 4) -> bytes | None:
                 with open(dest, "ab") as f:
                     shutil.copyfileobj(r, f, 1 << 20)
         except urllib.error.HTTPError as e:
-            if e.code < 500:
+            if not _retryable(e):
                 raise
+            print(f"{url}: {e}; retrying", flush=True)
+            wait = _retry_after(e)
         except OSError as e:
             if "ignored Range" in str(e) or "more than" in str(e) or "kept changing" in str(e):
                 raise
@@ -133,7 +146,7 @@ def get(url: str, dest: Path | None = None, tries: int = 4) -> bytes | None:
             stalls += 1
             if stalls >= tries:
                 raise OSError(f"{url}: no progress at {have} of {total} bytes")
-            time.sleep(10 * stalls)
+            time.sleep(max(10 * stalls, wait))
         else:
             stalls = 0
 
