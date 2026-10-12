@@ -1,6 +1,7 @@
 """Exercise build.get() against a local server: 404, dropped connections, a file replaced
 mid-download, a server that ignores Range, and 429 Too Many Requests (passing after two refusals,
-or never). Each case must fail closed or produce exact bytes."""
+or never). Each case must fail closed or produce exact bytes. Then check that grid_years keeps the
+committed table only when a server keeps refusing during the daily update."""
 import http.server
 import sys
 import tempfile
@@ -106,5 +107,51 @@ case("small file: 429 without Retry-After waits a minute per attempt", "429bare"
      slept=[60.0, 120.0, 180.0])
 case("large file: 429 without Retry-After waits a minute per attempt", "429bare", "OSError: http",
      slept=[60.0, 120.0, 180.0])
+
+
+# grid_years: in the daily update a refusing server keeps the committed table (STALE); a backfill,
+# or an error that could mean wrong bytes, still raises.
+import email.message  # noqa: E402
+
+import pandas as pd  # noqa: E402
+
+data = Path(tempfile.mkdtemp())
+build.DATA = data
+committed = pd.DataFrame({"date": pd.date_range("2026-01-01", periods=5), "r": [1.0, 2, 3, 4, 5],
+                          "r_anom_1991_2020": 0.0})
+committed.to_csv(data / "t.csv", index=False)
+
+
+def http(code):
+    return urllib.error.HTTPError(url, code, "x", email.message.Message(), None)
+
+
+def grid(name, err, expect, **kw):
+    global ok
+    def boom(*a, **k):
+        raise err
+    build.grid_year = boom
+    build.STALE.clear()
+    try:
+        df = build.grid_years("t", "u{y}", "v", {"r": None}, 0.0, 2020, kw.get("backfill"), kw.get("only"), tmp)
+        res = ("KEPT" if list(df.columns) == ["date", "r"] and df.r.tolist() == [1.0, 2, 3, 4, 5]
+               and len(build.STALE) == 1 else f"WRONG {list(df.columns)} stale={len(build.STALE)}")
+    except Exception as e:  # noqa: BLE001
+        res = f"RAISED {type(e).__name__}"
+    good = res.startswith(expect)
+    ok &= good
+    print(("PASS" if good else "FAIL"), "grid_years:", name, "->", res)
+
+
+grid("429 in the daily update keeps the committed table", http(429), "KEPT")
+grid("503 in the daily update keeps the committed table", http(503), "KEPT")
+grid("stall (no progress) keeps the committed table", OSError("u: no progress at 5 of 9 bytes"), "KEPT")
+grid("server ignoring Range still raises", OSError("u: server ignored Range (status 200)"), "RAISED")
+grid("file kept changing still raises", OSError("u: file kept changing during download"), "RAISED")
+grid("403 still raises", http(403), "RAISED")
+grid("429 during a backfill still raises", http(429), "RAISED", backfill=2025)
+grid("429 with --sst-years still raises", http(429), "RAISED", only=[2026])
+(data / "t.csv").unlink()
+grid("429 with no committed table still raises", http(429), "RAISED")
 print("ALL PASS" if ok else "SOME FAILED")
 sys.exit(0 if ok else 1)

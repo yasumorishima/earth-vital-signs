@@ -82,6 +82,13 @@ def _retry_after(e: urllib.error.HTTPError, attempt: int) -> float:
     return min(60.0 * attempt, 300.0) if e.code == 429 else 0.0
 
 
+def _refused(e: Exception) -> bool:
+    """The server kept refusing or stalling (retries used up), as opposed to sending wrong bytes."""
+    if isinstance(e, urllib.error.HTTPError):
+        return _retryable(e)
+    return isinstance(e, OSError) and "no progress at" in str(e)
+
+
 def get(url: str, dest: Path | None = None, tries: int = 4) -> bytes | None:
     """Small files are returned as bytes. Large files go to dest and are resumed with HTTP Range:
     the PSL server closes each connection after roughly 11 MB, so a 356 MB year arrives in pieces.
@@ -398,12 +405,23 @@ def grid_years(name: str, url: str, var: str, regions: dict, offset: float, firs
     for y in years:
         try:
             parts.append(grid_year(y, tmp, url, var, regions, offset))
-        except urllib.error.HTTPError as e:
+        except OSError as e:  # urllib.error.HTTPError is an OSError
             # PSL creates the new year's file only once its first day exists (2027 was 404 on
             # 2026-10-03); for the first days of January the current year may not exist yet.
-            if e.code == 404 and y == TODAY.year and TODAY.timetuple().tm_yday <= 10:
+            if (isinstance(e, urllib.error.HTTPError) and e.code == 404 and y == TODAY.year
+                    and TODAY.timetuple().tm_yday <= 10):
                 print(f"{var} {y}: no file yet (404); keeping earlier years", flush=True)
                 continue
+            # PSL answered 429 to every request for minutes on 2026-10-12 (from GitHub and from a
+            # home line alike, with no notice). In the daily update a refusing server leaves this
+            # table exactly as committed, like any stopped source, so the other tables still update;
+            # a backfill, or any error that could mean wrong bytes, still fails.
+            if not (backfill_from or years_only) and _refused(e) and len(old):
+                fresh(False, f"{name}: {url.format(y=y)} kept refusing ({e}); "
+                             f"keeping the committed table (last date {old.date.max().date()})")
+                keep = old[["date"] + [c for c in old.columns if c in regions]].copy()
+                keep["date"] = pd.to_datetime(keep.date)
+                return keep.sort_values("date").reset_index(drop=True)
             raise
     new = pd.concat(parts)
     keep = old[~pd.to_datetime(old.date).dt.year.isin(years)]
