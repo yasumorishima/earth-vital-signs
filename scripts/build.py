@@ -72,10 +72,14 @@ def _retryable(e: urllib.error.HTTPError) -> bool:
     return e.code >= 500 or e.code in (408, 429)
 
 
-def _retry_after(e: urllib.error.HTTPError) -> float:
-    """Seconds the server asked us to wait (Retry-After in seconds), capped at 5 minutes."""
+def _retry_after(e: urllib.error.HTTPError, attempt: int) -> float:
+    """Seconds to wait before retry number `attempt`: Retry-After (in seconds) when the server sends
+    it, otherwise a minute per attempt for 429, capped at 5 minutes. NOAA PSL sent 429 without
+    Retry-After on 2026-10-12 and served again a few minutes later, so 10-30 s waits were too short."""
     v = (e.headers.get("Retry-After") or "").strip() if e.headers else ""
-    return min(float(v), 300.0) if v.isdigit() else 0.0
+    if v.isdecimal():
+        return min(float(v), 300.0)
+    return min(60.0 * attempt, 300.0) if e.code == 429 else 0.0
 
 
 def get(url: str, dest: Path | None = None, tries: int = 4) -> bytes | None:
@@ -92,7 +96,7 @@ def get(url: str, dest: Path | None = None, tries: int = 4) -> bytes | None:
                 if not _retryable(e) or i == tries - 1:
                     raise
                 print(f"retry {i + 1} {url}: {e}", flush=True)
-                time.sleep(max(10 * (i + 1), _retry_after(e)))
+                time.sleep(max(10 * (i + 1), _retry_after(e, i + 1)))
             except Exception as e:  # network errors are retried, then raised
                 if i == tries - 1:
                     raise
@@ -137,7 +141,7 @@ def get(url: str, dest: Path | None = None, tries: int = 4) -> bytes | None:
             if not _retryable(e):
                 raise
             print(f"{url}: {e}; retrying", flush=True)
-            wait = _retry_after(e)
+            wait = _retry_after(e, stalls + 1)
         except OSError as e:
             if "ignored Range" in str(e) or "more than" in str(e) or "kept changing" in str(e):
                 raise

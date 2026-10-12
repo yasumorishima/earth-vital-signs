@@ -29,10 +29,13 @@ class H(http.server.BaseHTTPRequestHandler):
         if mode == "404":
             self.send_error(404)
             return
-        if mode == "429forever" or (mode == "429" and STATE["refused"] < 2):
+        refuse = (mode in ("429forever", "429bare") or (mode == "429" and STATE["refused"] < 2)
+                  or (mode == "429mid" and self.headers.get("Range") and STATE["refused"] < 1))
+        if refuse:
             STATE["refused"] += 1
             self.send_response(429)
-            self.send_header("Retry-After", "42")
+            if mode != "429bare":
+                self.send_header("Retry-After", "42")
             self.send_header("Content-Length", "0")
             self.end_headers()
             return
@@ -98,5 +101,10 @@ case("small file: 429 every time raises after 4 tries", "429forever", "HTTP429",
      slept=[42.0, 42.0, 42.0])
 case("large file: 429 twice then resumed to exact bytes", "429", "A", slept=[42.0, 42.0])
 case("large file: 429 every time fails closed", "429forever", "OSError: http", slept=[42.0, 42.0, 42.0])
+case("large file: 429 on a Range request after progress, then resumed", "429mid", "A", slept=[42.0])
+case("small file: 429 without Retry-After waits a minute per attempt", "429bare", "HTTP429", small=True,
+     slept=[60.0, 120.0, 180.0])
+case("large file: 429 without Retry-After waits a minute per attempt", "429bare", "OSError: http",
+     slept=[60.0, 120.0, 180.0])
 print("ALL PASS" if ok else "SOME FAILED")
 sys.exit(0 if ok else 1)
