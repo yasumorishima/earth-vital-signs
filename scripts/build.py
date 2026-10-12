@@ -649,9 +649,29 @@ def monthly_panel(t: dict[str, pd.DataFrame]) -> pd.DataFrame:
 
 
 # ---------------------------------------------------------------- history guard
+# Publishers that say their published values may be revised by quality control get a bounded
+# allowance per update instead of exact equality: (table, column naming the series, largest allowed
+# absolute change per series, in the series' own unit). Every numeric column of an older row must stay
+# within it, and missing values and the other columns must still match exactly.
+# NOAA GML: "These values are subject to change depending on quality control checks of the measured
+# data, but any revisions are expected to be small" (gml.noaa.gov/ccgg/trends/data.html). Its
+# 2026-10-09 reprocessing moved rows older than 400 days by at most CH4 0.19 ppb, CO2 0.06 ppm
+# (global and Mauna Loa), N2O 0.02 ppb and SF6 0.01 ppt. The limits sit at 2.5-3.3 times that. On the
+# published history a one-month shift of either column breaks them in at least 30% of the older rows of
+# every series (SF6 104 of 339) and an average/deseasonalized swap in at least 8 rows (SF6, whose
+# seasonal cycle is tiny); one row is enough to stop the update.
+# A larger revision, like a calibration-scale change, still stops the update for a human look.
+REVISION_TOLERANCE: dict[str, tuple[str, dict[str, float]]] = {
+    "greenhouse_gases_monthly": ("series", {
+        "co2_mlo": 0.2, "co2_global": 0.2, "ch4_global": 0.5, "n2o_global": 0.05, "sf6_global": 0.03,
+    }),
+}
+
+
 def history_guard(name: str, new: pd.DataFrame, keys: list[str], recent_days: int | None) -> None:
     """Rows already published must not disappear, and rows older than the revision window
-    must not change. A deliberate upstream reprocessing fails here and needs a human look.
+    must not change. A deliberate upstream reprocessing fails here and needs a human look,
+    unless the table has a REVISION_TOLERANCE, in which case small revisions pass and are reported.
     New columns may be added; published columns may not be dropped or renamed.
     recent_days=None marks an index its publisher revises in full (CPC re-normalizes ONI and the
     teleconnection indices): rows must still not disappear, and the largest change is reported."""
@@ -685,6 +705,22 @@ def history_guard(name: str, new: pd.DataFrame, keys: list[str], recent_days: in
     same_nan = bool((o[num].isna() == n[num].isna()).all().all()) if num else True
     as_text = lambda x: x.astype("string").fillna("<NA>")  # noqa: E731  bool/str read back as text
     same_other = bool((as_text(o[other]) == as_text(n[other])).all().all()) if other else True
+    if name in REVISION_TOLERANCE and len(o) and num:
+        by, limits = REVISION_TOLERANCE[name]
+        series = o.index.get_level_values(by)
+        gate(set(series) <= set(limits), f"{name}: every {by} has a revision limit (missing: "
+             f"{sorted(set(series) - set(limits))})")
+        allowed = pd.Series(series.map(limits), index=o.index, dtype=float)
+        diff = (o[num] - n[num].astype(float)).abs().max(axis=1)
+        used = diff.div(allowed).fillna(0.0)
+        worst = used.groupby(level=by).max()
+        print(f"INFO {name}: {int((diff > 1e-9).sum())} rows older than {recent_days} days revised; "
+              f"largest share of the limit per {by}: " + ", ".join(f"{k} {v:.2f}" for k, v in worst.items()))
+        gate(bool((used <= 1.0).all() and same_nan and same_other),
+             f"{name}: values older than {recent_days} days within the per-series revision limit "
+             f"(max diff {d}, largest share of limit {used.max():.2f}, missing values same: {same_nan}, "
+             f"other columns same: {same_other})")
+        return
     gate(bool(np.nan_to_num(d) < 1e-6 and same_nan and same_other),
          f"{name}: values older than {recent_days} days unchanged (max diff {d}, other columns same: {same_other})")
 

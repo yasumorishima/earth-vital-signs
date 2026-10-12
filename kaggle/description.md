@@ -29,7 +29,7 @@ Notebooks: [a first look](https://www.kaggle.com/code/yasunorim/earth-vital-sign
 
 - Dates are unique; the daily SST and air temperature series have no missing days, and every region is defined every day.
 - Values are inside a plausible physical range; the latest date is recent (a source that silently stopped is flagged).
-- Every published row older than its revision window is still present and unchanged. Sources revise recent values (preliminary SST for about two weeks, CO2 after calibration), so only older rows are frozen. NOAA CPC re-normalizes its indices, so for those only the rows are guaranteed, not the values.
+- Every published row older than its revision window is still present and unchanged. Sources revise recent values (preliminary SST for about two weeks, CO2 after calibration), so only older rows are frozen. NOAA GML says its greenhouse gas values may be revised slightly after quality control, so in that table each update may move an older value by at most 0.2 ppm (CO2), 0.5 ppb (CH4), 0.05 ppb (N2O) or 0.03 ppt (SF6). NOAA CPC re-normalizes its indices, so for those only the rows are guaranteed, not the values.
 - SST means are computed here from the full 0.25-degree OISST v2.1 grid. Each run recomputes one finalized day from NCEI's separate per-day file (all 11 regions within 0.005 C), compares the Niño-box 7-day means with NOAA CPC's weekly Niño SST over the last year, and compares the 60S-60N anomaly with ERA5's independent SST.
 
 ## Sources and citation
