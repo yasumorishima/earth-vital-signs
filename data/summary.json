@@ -4,8 +4,8 @@
     "last_date": "2026-10-16"
   },
   "co2_daily_mauna_loa": {
-    "rows": 16003,
-    "last_date": "2026-10-14"
+    "rows": 16004,
+    "last_date": "2026-10-16"
   },
   "greenhouse_gases_monthly": {
     "rows": 2564,
@@ -24,8 +24,8 @@
     "last_date": "2026-08-01"
   },
   "atmosphere_indices_daily": {
-    "rows": 28046,
-    "last_date": "2026-10-14"
+    "rows": 28047,
+    "last_date": "2026-10-15"
   },
   "climate_monthly_panel": {
     "rows": 922,
