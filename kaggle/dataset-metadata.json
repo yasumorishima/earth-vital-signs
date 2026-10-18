@@ -15,7 +15,7 @@
     "atmospheric science"
   ],
   "expectedUpdateFrequency": "daily",
-  "description": "The planet's headline climate indicators in tidy CSV, rebuilt every day by GitHub Actions from the original NOAA, NSIDC and Copernicus files: sea ice, CO2 and other greenhouse gases, sea surface temperature for 11 ocean regions (including the four Niño boxes and the Indian Ocean Dipole), global air temperature since 1940, ENSO and atmospheric circulation indices, and one monthly table that puts all of them side by side.\n\nThe popular Kaggle copies of these series stopped updating in 2017-2019. This one is regenerated daily, and a version is only published after automated checks pass.\n\nSource code and the full history of every update: https://github.com/yasumorishima/earth-vital-signs\n\nNotebooks: [a first look](https://www.kaggle.com/code/yasunorim/earth-vital-signs-a-first-look) and [is today a climate record?](https://www.kaggle.com/code/yasunorim/earth-vital-signs-is-today-a-climate-record), which is re-run after every daily version.\n\n## Files\n\n| File | What | From | Rows |\n|---|---|---|---|\n| `sea_ice_extent_daily.csv` | Arctic, Antarctic and global sea ice extent, with anomaly, rank for the date, record-low flag and year-over-year change | 1978-10-26 | ~47,000 |\n| `co2_daily_mauna_loa.csv` | Daily CO2 at Mauna Loa, with year-over-year change and record-high flag | 1974-05 | ~16,000 |\n| `greenhouse_gases_monthly.csv` | Monthly CO2 (Mauna Loa, global), CH4, N2O, SF6, with annual growth | 1958 / 1979+ | ~2,600 |\n| `sst_daily.csv` | Daily sea surface temperature for 11 regions with 1991-2020 anomalies, records, Indian Ocean Dipole index and relative Niño 3.4 | 1981-09-01 | ~16,500 |\n| `air_temperature_daily.csv` | Daily global 2 m air temperature (ERA5) with the 1991-2020 anomaly, rank for the date and record flag | 1940-01-01 | ~31,700 |\n| `enso_monthly.csv` | Oceanic Niño Index (ONI) and Relative ONI (RONI) | 1950 | ~920 |\n| `atmosphere_indices_daily.csv` | Daily Arctic Oscillation, North Atlantic Oscillation, Pacific-North American and Antarctic Oscillation | 1950-01-01 | ~28,000 |\n| `climate_monthly_panel.csv` | All of the above as monthly columns, one row per month: ready for correlation, regression and forecasting | 1950-01 | ~920 |\n\n## What you can do with it\n\n- See whether today is a record: sea ice (each hemisphere and global), the 60S-60N and global SST, and global air temperature have the rank of each day's value among all years for the same calendar day, and a record flag (CO2 has a record-high flag). The rank counts only the years up to the row's own, so later years never change it (only a recent day can move, while the source may still revise its value) and it can be used as a model target without look-ahead.\n- Track El Niño day by day: Niño 3.4 SST is daily here, while NOAA publishes it weekly and the ONI monthly.\n- Study links between the ocean, the atmosphere and the ice: the monthly panel lines up ENSO, the Indian Ocean Dipole, the Arctic Oscillation, sea ice, air and sea temperature and greenhouse gases.\n\n## How each update is checked\n\n- Dates are unique; the daily SST and air temperature series have no missing days, and every region is defined every day.\n- Values are inside a plausible physical range; the latest date is recent (a source that silently stopped is flagged).\n- Every published row older than its revision window is still present and unchanged. Sources revise recent values (preliminary SST for about two weeks, CO2 after calibration), so only older rows are frozen. NOAA GML says its greenhouse gas values may be revised slightly after quality control, so in that table each update may move an older value by at most 0.2 ppm (CO2), 0.5 ppb (CH4), 0.05 ppb (N2O) or 0.03 ppt (SF6). NOAA CPC re-normalizes its indices, so for those only the rows are guaranteed, not the values.\n- SST means are computed here from the full 0.25-degree OISST v2.1 grid. Each run recomputes one finalized day from NCEI's separate per-day file (all 11 regions within 0.005 C), compares the Niño-box 7-day means with NOAA CPC's weekly Niño SST over the last year, and compares the 60S-60N anomaly with ERA5's independent SST.\n\n## Sources and citation\n\nThe data are produced by the organizations below, which ask to be cited. Please cite them, not this dataset, in any publication.\n\n- Sea ice: Fetterer, F., Knowles, K., Meier, W. N., Savoie, M., Windnagel, A. K. & Stafford, T. (2025). Sea Ice Index (G02135, Version 4). Boulder, Colorado USA. NSIDC: National Snow and Ice Data Center. https://doi.org/10.7265/a98x-0f50\n- Mauna Loa CO2: Dr. Xin Lan, NOAA/GML (gml.noaa.gov/ccgg/trends/) and Dr. Ralph Keeling, Scripps Institution of Oceanography (scrippsco2.ucsd.edu/). Monthly values before 1974-05 are Scripps measurements.\n- Global greenhouse gases: Lan, X., Tans, P. and K.W. Thoning: Trends in globally-averaged CO2 determined from NOAA Global Monitoring Laboratory measurements. https://doi.org/10.15138/9N0H-ZH07 (and the corresponding CH4, N2O and SF6 pages at https://gml.noaa.gov/ccgg/trends/)\n- Sea surface temperature: NOAA OISST v2.1 (Huang, B. et al. 2021, J. Climate, doi:10.1175/JCLI-D-20-0166.1). Data provided by the NOAA PSL, Boulder, Colorado, USA, from their website at https://psl.noaa.gov\n- Air temperature: ERA5 daily global mean 2 m temperature from Copernicus Climate Pulse (https://pulse.climate.copernicus.eu). Contains modified Copernicus Climate Change Service information 2026. Neither the European Commission nor ECMWF is responsible for any use that may be made of the Copernicus information or data it contains. ERA5: Hersbach, H. et al. (2020), Q. J. R. Meteorol. Soc., 146, 1999-2049, doi:10.1002/qj.3803. Copernicus data are free and open, with attribution as above.\n- ENSO and circulation indices: NOAA Climate Prediction Center (https://www.cpc.ncep.noaa.gov). Indian Ocean Dipole definition: Saji, N. H. et al. (1999), Nature 401, 360-363.\n\n## License\n\nThe values are redistributed under the terms of each source, which make them freely available and ask for the attribution above. The regional means, anomalies, ranks and the build code are MIT-licensed (see the GitHub repository).\n\n## Notes\n\n- Air temperature is ERA5 reanalysis, a model-based estimate; its absolute level differs between reanalyses, so compare anomalies rather than absolute values with other sources. The most recent days are marked preliminary and can change slightly. (NCEP/NCAR Reanalysis 1, used by many older datasets, stopped on 2026-03-17.)\n- ERA5's own 60S-60N SST is compared with the OISST-based `world_60s_60n` anomaly on every run as an independent check.\n- Monthly global gas averages lag by a few months, as published by NOAA GML. CPC's teleconnection files are updated with a few days' lag.\n- This dataset is not affiliated with NOAA, NSIDC, NCEP, ECMWF or Copernicus.",
+  "description": "The planet's headline climate indicators in tidy CSV, rebuilt every day by GitHub Actions from the original NOAA, NSIDC and Copernicus files: sea ice, CO2 and other greenhouse gases, sea surface temperature for 11 ocean regions (including the four Niño boxes and the Indian Ocean Dipole), global air temperature since 1940, ENSO and atmospheric circulation indices, and one monthly table that puts all of them side by side.\n\nThe popular Kaggle copies of these series stopped updating in 2017-2019. This one is regenerated daily, and a version is only published after automated checks pass.\n\nSource code and the full history of every update: https://github.com/yasumorishima/earth-vital-signs\n\nNotebooks: [a first look](https://www.kaggle.com/code/yasunorim/earth-vital-signs-a-first-look) and [is today a climate record?](https://www.kaggle.com/code/yasunorim/earth-vital-signs-is-today-a-climate-record), which is re-run after every daily version.\n\n## Files\n\n| File | What | From | Rows |\n|---|---|---|---|\n| `sea_ice_extent_daily.csv` | Arctic, Antarctic and global sea ice extent, with anomaly, rank for the date, record-low flag and year-over-year change | 1978-10-26 | ~47,000 |\n| `co2_daily_mauna_loa.csv` | Daily CO2 at Mauna Loa, with year-over-year change and record-high flag | 1974-05 | ~16,000 |\n| `greenhouse_gases_monthly.csv` | Monthly CO2 (Mauna Loa, global), CH4, N2O, SF6, with annual growth | 1958 / 1979+ | ~2,600 |\n| `sst_daily.csv` | Daily sea surface temperature for 11 regions with 1991-2020 anomalies, records, Indian Ocean Dipole index and relative Niño 3.4 | 1981-09-01 | ~16,500 |\n| `air_temperature_daily.csv` | Daily global 2 m air temperature (ERA5) with the 1991-2020 anomaly, the anomaly above 1850-1900 (pre-industrial) as C3S computes it, days above 1.5 / 2.0 C, a 365-day mean, the year-to-date mean and its rank | 1940-01-01 | ~31,700 |\n| `enso_monthly.csv` | Oceanic Niño Index (ONI) and Relative ONI (RONI), with El Niño / La Niña episodes by NOAA's rule | 1950 | ~920 |\n| `atmosphere_indices_daily.csv` | Daily Arctic Oscillation, North Atlantic Oscillation, Pacific-North American and Antarctic Oscillation | 1950-01-01 | ~28,000 |\n| `climate_drivers_monthly.csv` | Drivers of global temperature: greenhouse gas radiative forcing (CO2, CH4, N2O; NOAA AGGI method), total solar irradiance, Pacific Decadal Oscillation | 1854-01 | ~2,070 |\n| `climate_monthly_panel.csv` | All of the above as monthly columns, one row per month: ready for correlation, regression and forecasting | 1950-01 | ~920 |\n\n## What you can do with it\n\n- Follow the 1.5 C question with C3S's own method: `global_2t_anom_preindustrial` adds C3S's day-of-year offset (0.79-0.97 C, not a flat 0.88) to the 1991-2020 anomaly; its yearly means reproduce C3S's published 1.48 C (2023), 1.60 C (2024) and 1.47 C (2025), and the build stops if they do not. A single day or year above 1.5 C is not a breach of the Paris Agreement, which refers to warming averaged over about 20 years.\n- Race this year against the record: `global_ytd_anom_preindustrial` is the year-to-date mean and `global_ytd_rank_warmest_for_day` its rank at the same date in every year (also for 60S-60N SST).\n- Group by ENSO phase: `oni_episode` / `roni_episode` label every season el_nino, la_nina or neutral by NOAA CPC's rule, and the build checks them against the colours of CPC's own tables every day. They are retrospective (a label uses later seasons), so do not use them as features known at the time.\n- Separate the drivers: greenhouse gas forcing (annual means reproduce NOAA's AGGI table), the Sun and the PDO are in `climate_drivers_monthly.csv`, and the Atlantic Multidecadal Oscillation as revised by Trenberth & Shea (2006) is in `sst_daily.csv`.\n- See whether today is a record: sea ice (each hemisphere and global), the 60S-60N and global SST, and global air temperature have the rank of each day's value among all years for the same calendar day, and a record flag (CO2 has a record-high flag). The rank counts only the years up to the row's own, so later years never change it (only a recent day can move, while the source may still revise its value) and it can be used as a model target without look-ahead.\n- Track El Niño day by day: Niño 3.4 SST is daily here, while NOAA publishes it weekly and the ONI monthly.\n- Study links between the ocean, the atmosphere and the ice: the monthly panel lines up ENSO, the Indian Ocean Dipole, the Arctic Oscillation, sea ice, air and sea temperature and greenhouse gases.\n\n## How each update is checked\n\n- Dates are unique; the daily SST and air temperature series have no missing days, and every region is defined every day.\n- Values are inside a plausible physical range; the latest date is recent (a source that silently stopped is flagged).\n- Every published row older than its revision window is still present and unchanged. Sources revise recent values (preliminary SST for about two weeks, CO2 after calibration), so only older rows are frozen. NOAA GML says its greenhouse gas values may be revised slightly after quality control, so in that table each update may move an older value by at most 0.2 ppm (CO2), 0.5 ppb (CH4), 0.05 ppb (N2O) or 0.03 ppt (SF6). NOAA CPC re-normalizes its indices, so for those only the rows are guaranteed, not the values.\n- SST means are computed here from the full 0.25-degree OISST v2.1 grid. Each run recomputes one finalized day from NCEI's separate per-day file (all 11 regions within 0.005 C), compares the Niño-box 7-day means with NOAA CPC's weekly Niño SST over the last year, and compares the 60S-60N anomaly with ERA5's independent SST.\n\n## Sources and citation\n\nThe data are produced by the organizations below, which ask to be cited. Please cite them, not this dataset, in any publication.\n\n- Sea ice: Fetterer, F., Knowles, K., Meier, W. N., Savoie, M., Windnagel, A. K. & Stafford, T. (2025). Sea Ice Index (G02135, Version 4). Boulder, Colorado USA. NSIDC: National Snow and Ice Data Center. https://doi.org/10.7265/a98x-0f50\n- Mauna Loa CO2: Dr. Xin Lan, NOAA/GML (gml.noaa.gov/ccgg/trends/) and Dr. Ralph Keeling, Scripps Institution of Oceanography (scrippsco2.ucsd.edu/). Monthly values before 1974-05 are Scripps measurements.\n- Global greenhouse gases: Lan, X., Tans, P. and K.W. Thoning: Trends in globally-averaged CO2 determined from NOAA Global Monitoring Laboratory measurements. https://doi.org/10.15138/9N0H-ZH07 (and the corresponding CH4, N2O and SF6 pages at https://gml.noaa.gov/ccgg/trends/)\n- Sea surface temperature: NOAA OISST v2.1 (Huang, B. et al. 2021, J. Climate, doi:10.1175/JCLI-D-20-0166.1). Data provided by the NOAA PSL, Boulder, Colorado, USA, from their website at https://psl.noaa.gov\n- Air temperature: ERA5 daily global mean 2 m temperature from Copernicus Climate Pulse (https://pulse.climate.copernicus.eu). Contains modified Copernicus Climate Change Service information 2026. Neither the European Commission nor ECMWF is responsible for any use that may be made of the Copernicus information or data it contains. ERA5: Hersbach, H. et al. (2020), Q. J. R. Meteorol. Soc., 146, 1999-2049, doi:10.1002/qj.3803. Copernicus data are free and open, with attribution as above.\n- ENSO and circulation indices: NOAA Climate Prediction Center (https://www.cpc.ncep.noaa.gov). Indian Ocean Dipole definition: Saji, N. H. et al. (1999), Nature 401, 360-363. AMO definition: Trenberth, K. E. & Shea, D. J. (2006), Geophys. Res. Lett. 33, L12704.\n- Pre-industrial offset: Copernicus Climate Change Service, Climate Bulletin \"About the data and analysis\" (https://climate.copernicus.eu/climate-bulletin-about-data-and-analysis).\n- Greenhouse gas forcing: expressions of NOAA's Annual Greenhouse Gas Index (https://gml.noaa.gov/aggi/; Forster et al. 2021, Smith et al. 2021).\n- Total solar irradiance: Coddington, O., Lean, J., Lindholm, C., the NASA Solar Irradiance Science Team Program and the NOAA CDR Program (2024): NOAA Climate Data Record (CDR) of Total Solar Irradiance (TSI), Version 3.0. NOAA National Centers for Environmental Information. https://doi.org/10.25921/k2ff-p712\n- PDO: NOAA National Centers for Environmental Information (https://www.ncei.noaa.gov/access/monitoring/pdo/).\n\n## License\n\nThe values are redistributed under the terms of each source, which make them freely available and ask for the attribution above. The regional means, anomalies, ranks and the build code are MIT-licensed (see the GitHub repository).\n\n## Notes\n\n- Air temperature is ERA5 reanalysis, a model-based estimate; its absolute level differs between reanalyses, so compare anomalies rather than absolute values with other sources. The most recent days are marked preliminary and can change slightly. (NCEP/NCAR Reanalysis 1, used by many older datasets, stopped on 2026-03-17.)\n- ERA5's own 60S-60N SST is compared with the OISST-based `world_60s_60n` anomaly on every run as an independent check.\n- Monthly global gas averages lag by a few months, as published by NOAA GML. CPC's teleconnection files are updated with a few days' lag. The solar irradiance record is released about once a year, so its latest months are empty until the next release.\n- CPC's `oni.ascii.txt` now serves the ERSST v6 ONI (DJF 1950: -1.32; the older v5 table has -1.5).\n- Not included on purpose: sunspot numbers (SILSO's licence is non-commercial), NOAA PSL's AMO file (stopped in 2023), and further rolling windows or lag columns (one line of pandas, and any choice of window would be arbitrary; the 365-day mean is kept because it is the 12-month figure C3S reports).\n- This dataset is not affiliated with NOAA, NSIDC, NCEP, ECMWF or Copernicus.",
   "resources": [
     {
       "path": "sea_ice_extent_daily.csv",
@@ -66,6 +66,11 @@
             "name": "yoy_change_mkm2",
             "type": "number",
             "description": "extent_mkm2 minus the value on the same date one year earlier; empty if that day was not observed (and on Feb 29)"
+          },
+          {
+            "name": "change_7d_mkm2",
+            "type": "number",
+            "description": "extent_mkm2 minus the value 7 days earlier, million square kilometres (melt or freeze-up pace; divide by 7 for a daily rate); empty before 1987-08, when the record is every other day"
           }
         ]
       }
@@ -290,6 +295,26 @@
             "name": "nino34_minus_tropics_anom",
             "type": "number",
             "description": "Niño 3.4 anomaly minus the tropical (20S-20N) mean anomaly, degrees Celsius. The relative Niño 3.4 behind NOAA CPC's RONI, without CPC's variance scaling or 3-month averaging"
+          },
+          {
+            "name": "amo_ts06",
+            "type": "number",
+            "description": "Atlantic Multidecadal Oscillation index as revised by Trenberth & Shea (2006, GRL 33, L12704): North Atlantic (0-60N, 80W-0) anomaly minus the 60S-60N anomaly, daily and unsmoothed, degrees Celsius. Removing the near-global mean keeps global warming out of the index"
+          },
+          {
+            "name": "world_60s_60n_ytd_anom_1991_2020",
+            "type": "number",
+            "description": "Mean of world_60s_60n_anom_1991_2020 from 1 January to this day (year-to-date), degrees Celsius; empty in 1981, which starts in September"
+          },
+          {
+            "name": "world_60s_60n_ytd_rank_warmest_for_day",
+            "type": "integer",
+            "description": "Rank of the year-to-date mean among the same calendar day of every year up to and including this one (1 = warmest), counting only this year and earlier years, so later years never change it (a recent day can still move while its value is inside the source revision window). Feb 29 is ranked among leap years only"
+          },
+          {
+            "name": "world_60s_60n_ytd_record_warm_for_day",
+            "type": "boolean",
+            "description": "True when the year-to-date mean is warmer than at the same date of every earlier year; empty until 10 earlier years exist"
           }
         ]
       }
@@ -333,6 +358,41 @@
             "name": "global_record_warm_for_day",
             "type": "boolean",
             "description": "True when global_2t is warmer than on the same calendar day of every earlier year; empty until 10 earlier years exist for that day"
+          },
+          {
+            "name": "global_2t_anom_preindustrial",
+            "type": "number",
+            "description": "Anomaly above the 1850-1900 (pre-industrial) level, the reference of the Paris Agreement, as C3S computes it: global_2t_anom_1991_2020 plus C3S's day-of-year offset 0.88 + 0.05 sin(2pi(n-0.5)/365) + 0.07 cos(2pi(n-0.5)/365) (0.79-0.97), not a flat 0.88. Its yearly means reproduce C3S's published 1.48 (2023), 1.60 (2024) and 1.47 (2025), degrees Celsius"
+          },
+          {
+            "name": "global_above_1_5c_preindustrial",
+            "type": "boolean",
+            "description": "True when global_2t_anom_preindustrial is above 1.5. A single day above 1.5 C is not a breach of the Paris Agreement, which refers to warming averaged over about 20 years"
+          },
+          {
+            "name": "global_above_2_0c_preindustrial",
+            "type": "boolean",
+            "description": "True when global_2t_anom_preindustrial is above 2.0 (first on 2023-11-17 in ERA5)"
+          },
+          {
+            "name": "global_2t_anom_preindustrial_365d",
+            "type": "number",
+            "description": "Mean of global_2t_anom_preindustrial over this day and the 364 before (a trailing 365-day mean), degrees Celsius; empty for the first 364 days of the record (until 1940-12-30)"
+          },
+          {
+            "name": "global_ytd_anom_preindustrial",
+            "type": "number",
+            "description": "Mean of global_2t_anom_preindustrial from 1 January to this day (year-to-date); on 31 December it is the annual mean, degrees Celsius"
+          },
+          {
+            "name": "global_ytd_rank_warmest_for_day",
+            "type": "integer",
+            "description": "Rank of the year-to-date mean among the same calendar day of every year up to and including this one (1 = warmest year so far), counting only this year and earlier years, so later years never change it (a recent day can still move while its value is inside the source revision window). Feb 29 is ranked among leap years only"
+          },
+          {
+            "name": "global_ytd_record_warm_for_day",
+            "type": "boolean",
+            "description": "True when the year-to-date mean is warmer than at the same date of every earlier year; empty until 10 earlier years exist"
           }
         ]
       }
@@ -355,7 +415,7 @@
           {
             "name": "oni_total_c",
             "type": "number",
-            "description": "Niño 3.4 SST from ERSSTv5, 3-month mean, degrees Celsius"
+            "description": "Niño 3.4 SST from ERSST v6 (CPC's current ONI file), 3-month mean, degrees Celsius"
           },
           {
             "name": "oni_anom",
@@ -366,6 +426,16 @@
             "name": "roni_anom",
             "type": "number",
             "description": "RONI: ONI-style index of the Niño 3.4 anomaly relative to the tropical mean, as published by CPC, degrees Celsius"
+          },
+          {
+            "name": "oni_episode",
+            "type": "string",
+            "description": "el_nino, la_nina or neutral by NOAA CPC's rule on ONI: the one-decimal value at or above +0.5 (or at or below -0.5) for at least 5 consecutive overlapping seasons. Empty while a run is still open with fewer than 5 seasons (undetermined). Checked every run against the colours of CPC's own table. Retrospective: a season's label uses up to 4 later seasons, so do not use it as a feature known at that date"
+          },
+          {
+            "name": "roni_episode",
+            "type": "string",
+            "description": "el_nino, la_nina or neutral by NOAA CPC's rule on RONI: the one-decimal value at or above +0.5 (or at or below -0.5) for at least 5 consecutive overlapping seasons. Empty while a run is still open with fewer than 5 seasons (undetermined). Checked every run against the colours of CPC's own table. Retrospective: a season's label uses up to 4 later seasons, so do not use it as a feature known at that date"
           }
         ]
       }
@@ -399,6 +469,49 @@
             "name": "aao",
             "type": "number",
             "description": "Antarctic Oscillation (Southern Annular Mode) index (700 hPa height), standardized, unitless; from 1979"
+          }
+        ]
+      }
+    },
+    {
+      "path": "climate_drivers_monthly.csv",
+      "description": "Monthly drivers of global temperature: effective radiative forcing of CO2, CH4 and N2O (NOAA AGGI method), total solar irradiance (NOAA CDR) and the Pacific Decadal Oscillation (NOAA NCEI).",
+      "schema": {
+        "fields": [
+          {
+            "name": "date",
+            "type": "datetime",
+            "description": "First day of the month, YYYY-MM-DD"
+          },
+          {
+            "name": "erf_co2_wm2",
+            "type": "number",
+            "description": "Effective radiative forcing of CO2 since 1750, W m-2, from the global monthly CO2, CH4 and N2O in greenhouse_gases_monthly with the expressions of NOAA's Annual Greenhouse Gas Index (Forster et al. 2021, Smith et al. 2021); from 2001, when the global N2O series starts. Annual means reproduce NOAA's AGGI table within 0.004"
+          },
+          {
+            "name": "erf_ch4_wm2",
+            "type": "number",
+            "description": "Effective radiative forcing of CH4 since 1750, W m-2 (same method)"
+          },
+          {
+            "name": "erf_n2o_wm2",
+            "type": "number",
+            "description": "Effective radiative forcing of N2O since 1750, W m-2 (same method)"
+          },
+          {
+            "name": "erf_co2_ch4_n2o_wm2",
+            "type": "number",
+            "description": "Sum of the three, W m-2. Excludes the halocarbons (about 0.4 W m-2 in NOAA's AGGI), aerosols and ozone, so it is not the total forcing"
+          },
+          {
+            "name": "tsi_wm2",
+            "type": "number",
+            "description": "Total solar irradiance at 1 AU, W m-2, monthly mean from NOAA's TSI Climate Data Record v3 (NNLTSI model, Coddington, Lean, Lindholm et al., doi:10.25921/k2ff-p712); released about once a year, so the latest months are empty until the next release"
+          },
+          {
+            "name": "pdo",
+            "type": "number",
+            "description": "Pacific Decadal Oscillation index from NOAA NCEI (ERSST v5 anomalies projected on the Mantua PDO pattern), unitless"
           }
         ]
       }
@@ -507,6 +620,36 @@
             "name": "roni_anom",
             "type": "number",
             "description": "RONI for the 3-month season centred on this month"
+          },
+          {
+            "name": "air_temp_global_anom_preindustrial",
+            "type": "number",
+            "description": "Monthly mean of air_temperature_daily.global_2t_anom_preindustrial (above 1850-1900), degrees Celsius"
+          },
+          {
+            "name": "sst_amo_ts06",
+            "type": "number",
+            "description": "Monthly mean of sst_daily.amo_ts06 (Atlantic Multidecadal Oscillation), degrees Celsius"
+          },
+          {
+            "name": "roni_episode",
+            "type": "string",
+            "description": "enso_monthly.roni_episode for that season (retrospective; see that column)"
+          },
+          {
+            "name": "erf_co2_ch4_n2o_wm2",
+            "type": "number",
+            "description": "climate_drivers_monthly.erf_co2_ch4_n2o_wm2, W m-2"
+          },
+          {
+            "name": "tsi_wm2",
+            "type": "number",
+            "description": "climate_drivers_monthly.tsi_wm2, W m-2"
+          },
+          {
+            "name": "pdo",
+            "type": "number",
+            "description": "climate_drivers_monthly.pdo"
           }
         ]
       }
