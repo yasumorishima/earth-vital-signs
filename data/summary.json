@@ -27,6 +27,10 @@
     "rows": 28047,
     "last_date": "2026-10-15"
   },
+  "climate_drivers_monthly": {
+    "rows": 2073,
+    "last_date": "2026-09-01"
+  },
   "climate_monthly_panel": {
     "rows": 922,
     "last_date": "2026-10-01"
