@@ -1,0 +1,23 @@
+{
+  "id": "yasunorim/earth-vital-signs-will-this-year-be-the-warmest",
+  "title": "Earth Vital Signs: will this year be the warmest?",
+  "code_file": "hottest-year.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": false,
+  "enable_gpu": false,
+  "enable_tpu": false,
+  "enable_internet": false,
+  "dataset_sources": [
+    "yasunorim/earth-vital-signs-daily"
+  ],
+  "competition_sources": [],
+  "kernel_sources": [],
+  "model_sources": [],
+  "keywords": [
+    "earth and nature",
+    "environment",
+    "time series analysis",
+    "data visualization"
+  ]
+}

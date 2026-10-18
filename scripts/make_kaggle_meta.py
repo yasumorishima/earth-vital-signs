@@ -58,6 +58,9 @@ FILES = {
                                   "(a record low for the date); empty until 10 earlier years exist for that day",
             "yoy_change_mkm2": "extent_mkm2 minus the value on the same date one year earlier; empty if that "
                                "day was not observed (and on Feb 29)",
+            "change_7d_mkm2": "extent_mkm2 minus the value 7 days earlier, million square kilometres (melt or "
+                              "freeze-up pace; divide by 7 for a daily rate); empty before 1987-08, when the record "
+                              "is every other day",
         }),
     "co2_daily_mauna_loa.csv": (
         "Daily mean atmospheric CO2 at Mauna Loa Observatory (NOAA GML); days without valid measurements are "
@@ -98,6 +101,16 @@ FILES = {
             "nino34_minus_tropics_anom": "Niño 3.4 anomaly minus the tropical (20S-20N) mean anomaly, "
                                          f"{C}. The relative Niño 3.4 behind NOAA CPC's RONI, without CPC's "
                                          "variance scaling or 3-month averaging",
+            "amo_ts06": "Atlantic Multidecadal Oscillation index as revised by Trenberth & Shea (2006, GRL 33, "
+                        "L12704): North Atlantic (0-60N, 80W-0) anomaly minus the 60S-60N anomaly, daily and "
+                        f"unsmoothed, {C}. Removing the near-global mean keeps global warming out of the index",
+            "world_60s_60n_ytd_anom_1991_2020": "Mean of world_60s_60n_anom_1991_2020 from 1 January to this day "
+                                                f"(year-to-date), {C}; empty in 1981, which starts in September",
+            "world_60s_60n_ytd_rank_warmest_for_day": "Rank of the year-to-date mean among the same calendar day "
+                                                      f"of every year up to and including this one (1 = warmest), "
+                                                      f"{CAUSAL}",
+            "world_60s_60n_ytd_record_warm_for_day": "True when the year-to-date mean is warmer than at the same "
+                                                     "date of every earlier year; empty until 10 earlier years exist",
         }),
     "air_temperature_daily.csv": (
         "Daily global mean 2 m air temperature from ERA5 (Copernicus Climate Change Service, via Climate Pulse), "
@@ -111,6 +124,25 @@ FILES = {
             "status": "final, or preliminary for the most recent days (based on ERA5 data not yet final; "
                       "usually revised slightly within a few days)",
             **rank_cols("global", "global_2t"),
+            "global_2t_anom_preindustrial": "Anomaly above the 1850-1900 (pre-industrial) level, the reference of "
+                                            "the Paris Agreement, as C3S computes it: global_2t_anom_1991_2020 plus "
+                                            "C3S's day-of-year offset 0.88 + 0.05 sin(2pi(n-0.5)/365) + 0.07 "
+                                            "cos(2pi(n-0.5)/365) (0.79-0.97), not a flat 0.88. Its yearly means "
+                                            f"reproduce C3S's published 1.48 (2023), 1.60 (2024) and 1.47 (2025), {C}",
+            "global_above_1_5c_preindustrial": "True when global_2t_anom_preindustrial is above 1.5. A single day "
+                                               "above 1.5 C is not a breach of the Paris Agreement, which refers to "
+                                               "warming averaged over about 20 years",
+            "global_above_2_0c_preindustrial": "True when global_2t_anom_preindustrial is above 2.0 (first on "
+                                               "2023-11-17 in ERA5)",
+            "global_2t_anom_preindustrial_365d": "Mean of global_2t_anom_preindustrial over this day and the 364 "
+                                                 f"before (a trailing 365-day mean), {C}; empty for the first 364 days "
+                                                 "of the record (until 1940-12-30)",
+            "global_ytd_anom_preindustrial": "Mean of global_2t_anom_preindustrial from 1 January to this day "
+                                             f"(year-to-date); on 31 December it is the annual mean, {C}",
+            "global_ytd_rank_warmest_for_day": "Rank of the year-to-date mean among the same calendar day of every "
+                                               f"year up to and including this one (1 = warmest year so far), {CAUSAL}",
+            "global_ytd_record_warm_for_day": "True when the year-to-date mean is warmer than at the same date of "
+                                              "every earlier year; empty until 10 earlier years exist",
         }),
     "enso_monthly.csv": (
         "El Niño-Southern Oscillation indices from NOAA CPC: the Oceanic Niño Index (ONI) and the Relative ONI "
@@ -119,11 +151,17 @@ FILES = {
         {
             "date": "First day of the centre month of the 3-month season (e.g. DJF 1950 -> 1950-01-01)",
             "season": "3-month season label as published by CPC (DJF, JFM, ... NDJ)",
-            "oni_total_c": f"Niño 3.4 SST from ERSSTv5, 3-month mean, {C}",
+            "oni_total_c": f"Niño 3.4 SST from ERSST v6 (CPC's current ONI file), 3-month mean, {C}",
             "oni_anom": "ONI: 3-month mean Niño 3.4 anomaly as published by CPC, degrees Celsius. El Niño "
                         "conditions at +0.5 or above, La Niña at -0.5 or below",
             "roni_anom": "RONI: ONI-style index of the Niño 3.4 anomaly relative to the tropical mean, as "
                          f"published by CPC, {C}",
+            **{f"{k}_episode": f"el_nino, la_nina or neutral by NOAA CPC's rule on {k.upper()}: the one-decimal "
+                               "value at or above +0.5 (or at or below -0.5) for at least 5 consecutive overlapping "
+                               "seasons. Empty while a run is still open with fewer than 5 seasons (undetermined). "
+                               "Checked every run against the colours of CPC's own table. Retrospective: a "
+                               "season's label uses up to 4 later seasons, so do not use it as a feature known at "
+                               "that date" for k in ("oni", "roni")},
         }),
     "atmosphere_indices_daily.csv": (
         "Daily standardized atmospheric circulation indices from NOAA CPC: Arctic Oscillation, North Atlantic "
@@ -137,6 +175,25 @@ FILES = {
             "pna": "Pacific-North American pattern index (500 hPa height), standardized, unitless",
             "aao": "Antarctic Oscillation (Southern Annular Mode) index (700 hPa height), standardized, "
                    "unitless; from 1979",
+        }),
+    "climate_drivers_monthly.csv": (
+        "Monthly drivers of global temperature: effective radiative forcing of CO2, CH4 and N2O (NOAA AGGI method), "
+        "total solar irradiance (NOAA CDR) and the Pacific Decadal Oscillation (NOAA NCEI).",
+        {
+            "date": "First day of the month, YYYY-MM-DD",
+            "erf_co2_wm2": "Effective radiative forcing of CO2 since 1750, W m-2, from the global monthly CO2, CH4 "
+                           "and N2O in greenhouse_gases_monthly with the expressions of NOAA's Annual Greenhouse Gas "
+                           "Index (Forster et al. 2021, Smith et al. 2021); from 2001, when the global N2O series "
+                           "starts. Annual means reproduce NOAA's AGGI table within 0.004",
+            "erf_ch4_wm2": "Effective radiative forcing of CH4 since 1750, W m-2 (same method)",
+            "erf_n2o_wm2": "Effective radiative forcing of N2O since 1750, W m-2 (same method)",
+            "erf_co2_ch4_n2o_wm2": "Sum of the three, W m-2. Excludes the halocarbons (about 0.4 W m-2 in NOAA's "
+                                   "AGGI), aerosols and ozone, so it is not the total forcing",
+            "tsi_wm2": "Total solar irradiance at 1 AU, W m-2, monthly mean from NOAA's TSI Climate Data Record "
+                       "v3 (NNLTSI model, Coddington, Lean, Lindholm et al., doi:10.25921/k2ff-p712); released "
+                       "about once a year, so the latest months are empty until the next release",
+            "pdo": "Pacific Decadal Oscillation index from NOAA NCEI (ERSST v5 anomalies projected on the Mantua "
+                   "PDO pattern), unitless",
         }),
     "climate_monthly_panel.csv": (
         "Every indicator side by side, one row per month from 1950: monthly means of the daily tables plus the "
@@ -162,6 +219,13 @@ FILES = {
             "sf6_global_ppt": "Monthly global sulfur hexafluoride, ppt",
             "oni_anom": "ONI for the 3-month season centred on this month",
             "roni_anom": "RONI for the 3-month season centred on this month",
+            "air_temp_global_anom_preindustrial": "Monthly mean of air_temperature_daily.global_2t_anom_preindustrial "
+                                                  f"(above 1850-1900), {C}",
+            "sst_amo_ts06": f"Monthly mean of sst_daily.amo_ts06 (Atlantic Multidecadal Oscillation), {C}",
+            "roni_episode": "enso_monthly.roni_episode for that season (retrospective; see that column)",
+            "erf_co2_ch4_n2o_wm2": "climate_drivers_monthly.erf_co2_ch4_n2o_wm2, W m-2",
+            "tsi_wm2": "climate_drivers_monthly.tsi_wm2, W m-2",
+            "pdo": "climate_drivers_monthly.pdo",
         }),
 }
 PANEL_NOTE = (" Daily-derived columns are filled only when at least 90% of the month's days are present (40% "
@@ -171,7 +235,8 @@ SOURCES = (
     "NSIDC Sea Ice Index v4 (G02135, doi:10.7265/a98x-0f50); NOAA Global Monitoring Laboratory CO2, CH4, N2O "
     "and SF6 trends (gml.noaa.gov/ccgg/trends, with Scripps Institution of Oceanography for Mauna Loa CO2); "
     "NOAA OISST v2.1 daily 0.25-degree SST via NOAA PSL, cross-checked against NCEI and NOAA CPC; ERA5 daily "
-    "global 2 m air temperature from the Copernicus Climate Change Service (Climate Pulse); NOAA CPC ONI, RONI and daily AO/NAO/PNA/AAO. Built "
+    "global 2 m air temperature from the Copernicus Climate Change Service (Climate Pulse); NOAA CPC ONI, RONI and daily AO/NAO/PNA/AAO; "
+    "NOAA GML AGGI expressions; NOAA NCEI TSI Climate Data Record v3 and PDO index. Built "
     "daily by scripts/build.py in https://github.com/yasumorishima/earth-vital-signs, which publishes nothing "
     "unless every check passes."
 )

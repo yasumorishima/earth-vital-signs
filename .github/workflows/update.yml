@@ -50,6 +50,9 @@ jobs:
       - name: Test the downloader (404, dropped connections, file replaced mid-download)
         run: python scripts/test_get.py
 
+      - name: Test the derived columns (pre-industrial offset, ENSO episodes, CPC table parser, forcing)
+        run: python scripts/test_derived.py
+
       # Gates run inside build.py; any failure exits non-zero before data/ is touched.
       - name: Build and gate
         env:
@@ -118,5 +121,7 @@ jobs:
             sleep 30
           done
           set -o pipefail
-          kaggle kernels push -p notebooks/todays-records 2>&1 | tee kernel.log
-          if grep -qiE "error|unsuccessful" kernel.log; then exit 1; fi
+          for nb in notebooks/todays-records; do
+            kaggle kernels push -p "$nb" 2>&1 | tee kernel.log
+            if grep -qiE "error|unsuccessful" kernel.log; then exit 1; fi
+          done

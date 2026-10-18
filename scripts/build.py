@@ -212,6 +212,24 @@ def day_rank(df: pd.DataFrame, col: str, highest: bool, by: str | None = None,
     return r, f
 
 
+def ytd_mean(df: pd.DataFrame, col: str) -> pd.Series:
+    """Mean of `col` from 1 January to the row's own date (the frame is one row per day, sorted).
+    Empty in a year whose record does not start on 1 January (e.g. SST in 1981)."""
+    y = df.date.dt.year
+    m = df.groupby(y)[col].cumsum() / df[col].notna().groupby(y).cumsum()
+    starts = df.groupby(y).date.transform("min")
+    return m.where((starts.dt.month == 1) & (starts.dt.day == 1)).round(4)
+
+
+def change_over(df: pd.DataFrame, col: str, days: int, by: str | None = None) -> pd.Series:
+    """Value minus the value `days` calendar days earlier; empty if that earlier day is absent."""
+    key = ["date"] if by is None else [by, "date"]
+    prev = df[key + [col]].copy()
+    prev["date"] = prev.date + pd.Timedelta(days=days)
+    m = df[key].merge(prev.rename(columns={col: "_prev"}), on=key, how="left")
+    return pd.Series(df[col].to_numpy() - m["_prev"].to_numpy(), index=df.index).round(4)
+
+
 def yoy(df: pd.DataFrame, col: str, by: str | None = None, months: bool = False) -> pd.Series:
     """Value minus the value on the same calendar day (or month) one year earlier; empty if that
     earlier value is missing (and on Feb 29)."""
@@ -261,6 +279,7 @@ def sea_ice() -> pd.DataFrame:
     out["extent_anom_1991_2020_mkm2"] = anom_1991_2020(out, "extent_mkm2", by="hemisphere")
     out["rank_lowest_for_day"], out["record_low_for_day"] = day_rank(out, "extent_mkm2", False, "hemisphere")
     out["yoy_change_mkm2"] = yoy(out, "extent_mkm2", by="hemisphere")
+    out["change_7d_mkm2"] = change_over(out, "extent_mkm2", 7, by="hemisphere")
     for h, g in out.groupby("hemisphere"):
         lo, hi = {"north": (2.5, 17.5), "south": (1.0, 21.0), "global": (14.0, 30.0)}[h]
         gate(g.date.is_unique, f"sea_ice {h}: dates unique")
@@ -268,6 +287,16 @@ def sea_ice() -> pd.DataFrame:
         gate(g.date.min() == pd.Timestamp("1978-10-26"), f"sea_ice {h}: starts 1978-10-26")
         fresh(lag_days(g.date.max()) <= 6, f"sea_ice {h}: last date {g.date.max().date()} within 6 days")
         gate(g.extent_anom_1991_2020_mkm2.notna().all(), f"sea_ice {h}: anomaly defined on every row")
+        # Largest 7-day changes on record (measured 2026-10-18): north 1.78 (2020-11), south 2.45 (2004-12),
+        # global 2.17 (2004-12). The limits sit 1.5 times above.
+        c7 = g.change_7d_mkm2.dropna()
+        gate(len(c7) > 0.9 * len(g[g.date >= "1987-09-01"])
+             and c7.abs().max() <= {"north": 2.7, "south": 3.7, "global": 3.3}[h],
+             f"sea_ice {h}: 7-day change defined on the daily era and within bounds (max |.| {c7.abs().max():.2f})")
+        if h == "north":  # direction: the Arctic freezes up in October and melts in July
+            mo = g.date.dt.month
+            up, down = g.change_7d_mkm2[mo == 10].median(), g.change_7d_mkm2[mo == 7].median()
+            gate(up > 0 > down, f"sea_ice north: 7-day change median October {up:+.2f} > 0 > July {down:+.2f}")
         last = g.iloc[-1]
         gate(1 <= last.rank_lowest_for_day <= last.date.year - 1977,
              f"sea_ice {h}: latest rank {last.rank_lowest_for_day} within the years on record")
@@ -444,7 +473,8 @@ def grid_years(name: str, url: str, var: str, regions: dict, offset: float, firs
 
 
 def daily_complete(df: pd.DataFrame, tag: str, start: str, cols) -> None:
-    gate(df.date.is_unique, f"{tag}: dates unique")
+    # sorted as well: the trailing and year-to-date means are computed by row order
+    gate(df.date.is_unique and df.date.is_monotonic_increasing, f"{tag}: dates unique and sorted")
     gate(df.date.min() == pd.Timestamp(start), f"{tag}: starts {start} (got {df.date.min().date()})")
     full = pd.date_range(df.date.min(), df.date.max(), freq="D")
     gate(len(full) == len(df), f"{tag}: no missing days ({len(full) - len(df)} missing)")
@@ -529,6 +559,21 @@ def sst(backfill_from: int | None, years_only: list[int] | None = None) -> pd.Da
                  - df["iod_east_10s_0_90e_110e_anom_1991_2020"]).round(4)
     df["nino34_minus_tropics_anom"] = (df["nino34_5n_5s_170w_120w_anom_1991_2020"]
                                        - df["tropics_20s_20n_anom_1991_2020"]).round(4)
+    # Trenberth & Shea (2006, GRL 33, L12704) revised AMO: North Atlantic (0-60N, 0-80W) anomaly with the
+    # 60S-60N mean removed. PSL's AMO file stopped in 2023-01.
+    df["amo_ts06"] = (df["north_atlantic_0_60n_0_80w_anom_1991_2020"]
+                      - df["world_60s_60n_anom_1991_2020"]).round(4)
+    df["world_60s_60n_ytd_anom_1991_2020"] = ytd_mean(df, "world_60s_60n_anom_1991_2020")
+    (df["world_60s_60n_ytd_rank_warmest_for_day"],
+     df["world_60s_60n_ytd_record_warm_for_day"]) = day_rank(df, "world_60s_60n_ytd_anom_1991_2020", True)
+    last = df[_md(df.date) == "12-31"]
+    yearly = df.groupby(df.date.dt.year)["world_60s_60n_anom_1991_2020"].mean()
+    dec31 = last.set_index(last.date.dt.year)["world_60s_60n_ytd_anom_1991_2020"].dropna()
+    gate(len(dec31) >= 40 and bool(np.allclose(dec31, yearly.reindex(dec31.index), atol=1e-4)),
+         f"sst: year-to-date mean on 31 Dec = annual mean ({len(dec31)} years)")
+    # the record North Atlantic warmth of the second half of 2023 must come out positive
+    h2 = df[(df.date >= "2023-06-01") & (df.date <= "2023-12-31")].amo_ts06.mean()
+    gate(h2 > 0, f"sst: amo_ts06 mean for 2023-06..12 is positive ({h2:+.3f} C)")
     gate(df["world_60s_60n"].between(19.0, 22.0).all(), "sst: world 60S-60N within [19,22] C")
     gate(df["nino34_5n_5s_170w_120w"].between(23.0, 32.0).all(), "sst: Nino 3.4 within [23,32] C")  # record 29.97 on 2026-10-01
     cpc_weekly_check(df)
@@ -548,9 +593,28 @@ def pulse(v: str) -> pd.DataFrame:
     return df
 
 
+# C3S relates ERA5's 1991-2020 anomalies to 1850-1900 with a day-of-year offset (0.88 C on the annual mean):
+# 0.88 + 0.05 sin(2 pi (n - 0.5) / 365) + 0.07 cos(2 pi (n - 0.5) / 365) for day n of a 365-day year, and the mean of
+# 28 February and 1 March on 29 February (climate.copernicus.eu/climate-bulletin-about-data-and-analysis).
+# A flat 0.88 is, in C3S's words, adequate only for twelve-month averages.
+def c3s_preindustrial_offset(dates: pd.Series) -> pd.Series:
+    def f(n):
+        return 0.88 + 0.05 * np.sin(2 * np.pi * (n - 0.5) / 365) + 0.07 * np.cos(2 * np.pi * (n - 0.5) / 365)
+    md = _md(dates)
+    n = pd.to_datetime("2001-" + md.replace("02-29", "02-28")).dt.dayofyear.to_numpy(dtype=float)
+    o = f(n)
+    o[(md == "02-29").to_numpy()] = (f(59.0) + f(60.0)) / 2
+    return pd.Series(o, index=dates.index)
+
+
+# Annual global means above 1850-1900 published by C3S (Global Climate Highlights 2023, 2024 and 2025, ERA5).
+# The yearly mean of our daily values must reproduce them: checks the offset and the anomaly column end to end.
+C3S_ANNUAL_PREINDUSTRIAL = {2023: 1.48, 2024: 1.60, 2025: 1.47}
+
+
 def air() -> pd.DataFrame:
     """ERA5 daily global mean 2 m air temperature from Copernicus Climate Pulse (1940-present),
-    with C3S's own 1991-2020 daily climatology and anomaly."""
+    with C3S's own 1991-2020 daily climatology and anomaly, and the anomaly above 1850-1900."""
     e = pulse("2t_global")
     df = pd.DataFrame({
         "date": e.date,
@@ -571,6 +635,32 @@ def air() -> pd.DataFrame:
          f"air: global mean within [10,18.5] C ({df.global_2t.min():.2f}..{df.global_2t.max():.2f})")
     a = df.global_2t_anom_1991_2020
     gate(a.between(-2.5, 2.5).all(), f"air: global anomaly within [-2.5,2.5] C ({a.min():.2f}..{a.max():.2f})")
+    off = c3s_preindustrial_offset(df.date)
+    # C3S: daily offsets range 0.79-0.97, largest change in (northern) late winter, smallest in July. The annual
+    # means below cannot see the phase or a flat 0.88, so the shape is checked here.
+    one = off[df.date.dt.year == 2001]
+    hi, lo = df.date[one.idxmax()], df.date[one.idxmin()]
+    gate(abs(one.max() - 0.966) < 0.002 and abs(one.min() - 0.794) < 0.002 and hi.month in (1, 2, 3)
+         and lo.month in (7, 8, 9), f"air: C3S daily offset peaks {one.max():.3f} on {hi:%m-%d} and dips {one.min():.3f} "
+                                    f"on {lo:%m-%d} (expected 0.966 in Jan-Mar, 0.794 in Jul-Sep)")
+    pi = "global_2t_anom_preindustrial"
+    df[pi] = (a + off).round(4)
+    df["global_above_1_5c_preindustrial"] = (df[pi] > 1.5).astype("boolean")
+    df["global_above_2_0c_preindustrial"] = (df[pi] > 2.0).astype("boolean")
+    df[pi + "_365d"] = df[pi].rolling(365, min_periods=365).mean().round(4)
+    df["global_ytd_anom_preindustrial"] = ytd_mean(df, pi)
+    (df["global_ytd_rank_warmest_for_day"],
+     df["global_ytd_record_warm_for_day"]) = day_rank(df, "global_ytd_anom_preindustrial", True)
+    yearly = df.groupby(df.date.dt.year)[pi].mean()
+    first2 = df.date[df.global_above_2_0c_preindustrial.fillna(False)].min()
+    gate(first2 == pd.Timestamp("2023-11-17"), f"air: first day above 2.0 C is 2023-11-17 as C3S reported ({first2})")
+    for y, v in C3S_ANNUAL_PREINDUSTRIAL.items():
+        gate(abs(yearly.get(y, np.nan) - v) <= 0.006,
+             f"air: {y} mean above 1850-1900 {yearly.get(y, np.nan):.3f} vs C3S published {v:.2f} (within 0.006)")
+    # the year-to-date mean on 31 December is the annual mean
+    last = df[_md(df.date) == "12-31"]
+    dec31 = last.set_index(last.date.dt.year)["global_ytd_anom_preindustrial"]
+    gate(bool(np.allclose(dec31, yearly.reindex(dec31.index), atol=1e-4)), "air: year-to-date mean on 31 Dec = annual mean")
     fresh(lag_days(df.date.max()) <= 7, f"air: last date {df.date.max().date()} within 7 days")
     return df
 
@@ -607,9 +697,103 @@ def sst_vs_era5(df: pd.DataFrame) -> None:
 SEASONS = ["DJF", "JFM", "FMA", "MAM", "AMJ", "MJJ", "JJA", "JAS", "ASO", "SON", "OND", "NDJ"]
 
 
+CPC_ONI_PAGE = "https://www.cpc.ncep.noaa.gov/products/analysis_monitoring/enso/oni/v6/"
+CPC_RONI_PAGE = "https://www.cpc.ncep.noaa.gov/products/analysis_monitoring/enso/roni/"
+EPISODE_EXEMPT_MAX = 6  # measured 2026-10-18 over 920 seasons: ONI 3, RONI 1 (MJJ 2024 at -0.45); twice the larger
+
+
+def cpc_round(x: np.ndarray) -> np.ndarray:
+    """One decimal, half away from zero, as in CPC's tables (0.45 -> 0.5, -0.45 -> -0.5)."""
+    return np.sign(x) * np.floor(np.abs(x) * 10 + 0.5 + 1e-9) / 10
+
+
+def enso_episodes(x: pd.Series) -> pd.Series:
+    """NOAA CPC's historical ENSO episodes: the one-decimal index at or above +0.5 (El Niño) or at or below
+    -0.5 (La Niña) for at least 5 consecutive overlapping seasons; other seasons are neutral. A qualifying run
+    that is still open at the end of the record (fewer than 5 seasons so far) is left empty: undetermined."""
+    v = x.to_numpy(dtype=float)
+    s = cpc_round(v)
+    st = np.where(s >= 0.5, 1, np.where(s <= -0.5, -1, 0))
+    st[np.isnan(v)] = 0
+    lab = np.where(np.isnan(v), "", "neutral").astype(object)
+    last = np.flatnonzero(~np.isnan(v)).max()
+    i = 0
+    while i < len(v):
+        if st[i] == 0:
+            i += 1
+            continue
+        j = i
+        while j + 1 < len(v) and st[j + 1] == st[i]:
+            j += 1
+        if j - i + 1 >= 5:
+            lab[i:j + 1] = "el_nino" if st[i] > 0 else "la_nina"
+        elif j == last:
+            lab[i:j + 1] = ""
+        i = j + 1
+    return pd.Series(lab, index=x.index, dtype="string")
+
+
+def cpc_table(url: str) -> pd.DataFrame:
+    """The season table on a CPC ONI/RONI page: year, centre month, value and colour class (warm/cold/normal).
+    The RONI page marks cells with classes roni-warm/roni-cold/roni-normal, the ONI page with red/blue/black."""
+    page = get(url).decode("utf-8", "replace")
+    rows = []
+    for tr in re.findall(r"<tr[^>]*>(.*?)(?=<tr[^>]*>|</tbody>|</table>)", page, re.S):
+        cells = re.findall(r"<t[dh][^>]*>(.*?)</t[dh]>", tr, re.S)
+        if not cells:
+            continue
+        yr = re.sub(r"<[^>]+>", "", cells[0]).strip()
+        if not re.fullmatch(r"\d{4}", yr):
+            continue
+        for k, c in enumerate(cells[1:13]):
+            v = re.sub(r"<[^>]+>", "", c).strip()
+            if not re.fullmatch(r"-?\d+\.\d", v):
+                continue
+            m = re.search(r"(?:roni|oni)-(warm|cold|normal)|color:\s*(red|blue|black)", c)
+            cls = {"red": "warm", "blue": "cold", "black": "normal"}.get(m.group(2), m.group(2)) if m and m.group(2) \
+                else (m.group(1) if m else "")
+            rows.append({"date": pd.Timestamp(int(yr), k + 1, 1), "cpc_value": float(v), "cpc_class": cls})
+    return pd.DataFrame(rows, columns=["date", "cpc_value", "cpc_class"])
+
+
+def cpc_episode_check(df: pd.DataFrame, col: str, url: str) -> None:
+    """Our episode labels must match the colours CPC prints. CPC rounds from more digits than the two-decimal
+    file, so a season at exactly +-0.45 can fall either way: mismatches are allowed only within 4 seasons of
+    such a value, and where our run is still undetermined (CPC leaves it uncoloured)."""
+    t = cpc_table(url)
+    # a page that can no longer be read fails like any other source, so the check cannot quietly switch off
+    gate(len(t) >= 900 and t.date.is_unique and not t.cpc_class.eq("").any(),
+         f"enso {col}: CPC table read ({len(t)} seasons, dates unique {t.date.is_unique}, "
+         f"{int(t.cpc_class.eq('').sum())} without a colour)")
+    if len(t) == 0 or not t.date.is_unique:
+        return
+    # The page and the file are updated separately. Label the file as it stood at the page's last season, so a
+    # run that the newer file has just completed (or the page has not reached yet) is compared like for like.
+    anom = col.replace("_episode", "_anom")
+    f = df[(df.date <= t.date.max()) & df[anom].notna()][["date", anom]].copy()
+    f[col] = enso_episodes(f[anom]).to_numpy()
+    m = f.merge(t, on="date", how="inner").reset_index(drop=True)
+    if t.date.max() > f.date.max():
+        # the page is ahead: its colours for our last 4 seasons may already use seasons the file lacks
+        m = m[m.date <= f.date.max() - pd.DateOffset(months=4)].reset_index(drop=True)
+    x = m[anom].to_numpy(dtype=float)
+    ours = m[col].map({"el_nino": "warm", "la_nina": "cold", "neutral": "normal", "": "normal"})
+    near = pd.Series(np.isclose(np.abs(x), 0.45, atol=1e-9)).rolling(9, center=True, min_periods=1).max().astype(bool)
+    bad = (ours != m.cpc_class) & ~near
+    exempt = int(((ours != m.cpc_class) & near).sum())
+    gate(exempt <= EPISODE_EXEMPT_MAX, f"enso {col}: {exempt} seasons differ at a +-0.45 value (<= {EPISODE_EXEMPT_MAX})")
+    gate(len(m) >= 900 and not bad.any(),
+         f"enso {col}: CPC's coloured table, {len(m)} seasons: {int((ours == m.cpc_class).sum())} same colour "
+         f"(an open run counts as uncoloured, as on CPC's page), {exempt} differ at a +-0.45 value, "
+         f"{int(bad.sum())} unexplained"
+         + (f"; unexplained: {m.date[bad].dt.strftime('%Y-%m').tolist()[:6]}" if bad.any() else ""))
+    dv = np.abs(m.cpc_value - cpc_round(x))
+    gate(bool((dv <= 0.1 + 1e-9).all()), f"enso {col}: CPC table values within 0.1 of the file (max {dv.max():.2f})")
+
+
 def enso_monthly() -> pd.DataFrame:
-    """ONI (ERSSTv5 Niño 3.4, 3-month running mean) and RONI (relative ONI, NOAA CPC's official
-    ENSO index per NWS statement 26-05), dated by the centre month of each 3-month season."""
+    """ONI (ERSST v6 Niño 3.4, 3-month running mean, as now served by CPC's oni.ascii.txt) and RONI (relative
+    ONI, NOAA CPC's official ENSO index per NWS statement 26-05), dated by the centre month of each season."""
     def read(f, cols):
         t = pd.read_csv(io.StringIO(get(CPC.format(f=f)).decode()), sep=r"\s+")
         gate(t.shape[1] == len(cols), f"enso {f}: {len(cols)} columns (got {t.shape[1]})")
@@ -628,6 +812,14 @@ def enso_monthly() -> pd.DataFrame:
     gate(df.oni_anom.dropna().between(-3, 3.5).all() and df.roni_anom.dropna().between(-3, 3.5).all(),
          "enso: anomalies within [-3,3.5] C")
     fresh(lag_days(df.date.max()) <= 120, f"enso: last season centre {df.date.max().date()} within 120 days")
+    # oni.ascii.txt switched from ERSST v5 to v6 (DJF 1950: v5 -1.5, v6 -1.32). Another version change makes the
+    # column descriptions wrong, not the data, so it is a warning.
+    fresh(abs(df.oni_anom.iloc[0] - (-1.32)) <= 0.02,
+          f"enso: ONI DJF 1950 {df.oni_anom.iloc[0]} is the ERSST v6 value -1.32 (else update the descriptions)")
+    df["oni_episode"] = enso_episodes(df.oni_anom)
+    df["roni_episode"] = enso_episodes(df.roni_anom)
+    cpc_episode_check(df, "oni_episode", CPC_ONI_PAGE)
+    cpc_episode_check(df, "roni_episode", CPC_RONI_PAGE)
     return df
 
 
@@ -652,6 +844,118 @@ def atmosphere_daily() -> pd.DataFrame:
     return df
 
 
+# ---------------------------------------------------------------- climate drivers (monthly)
+PDO_URL = "https://www.ncei.noaa.gov/pub/data/cmb/ersst/v5/index/ersst.v5.pdo.dat"
+TSI_DIR = "https://www.ncei.noaa.gov/data/total-solar-irradiance/access/monthly/"
+TSI_VERSION = "v03r00"
+AGGI_TABLE = "https://gml.noaa.gov/aggi/AGGI_Table.csv"
+
+# NOAA AGGI Table 1 (gml.noaa.gov/aggi/aggi.html): effective radiative forcing expressions of Forster et al. (2021)
+# and Smith et al. (2021), with 1750 abundances C0, M0, N0. C, M, N are global CO2 (ppm), CH4 (ppb), N2O (ppb).
+ERF_C0, ERF_M0, ERF_N0 = 278.3, 729.2, 270.1
+# W m-2. Measured 2001-2024: max |diff| 0.0006 (Table 2 prints 3 decimals). A CO2 revision of 0.2 ppm, which the
+# gases table accepts, moves the CO2 forcing by about 0.003, so the limit leaves room for it.
+ERF_TOL = 0.004
+
+
+def erf_gases(C, M, N):
+    a1, b1, c1, d1, e1 = -2.48e-7, 7.59e-4, -2.15e-3, 5.2488, 1.05
+    a2, b2, d2, e2 = -8.96e-5, -1.25e-4, 0.045194, 0.86
+    a3, b3, c3, d3, e3 = -3.42e-4, 2.546e-4, -2.44e-4, 0.12173, 1.07
+    alpha = d1 + a1 * (C - ERF_C0) ** 2 + b1 * (C - ERF_C0)
+    co2 = (alpha + c1 * np.sqrt(N)) * np.log(C / ERF_C0) * e1
+    ch4 = (a2 * np.sqrt(M) + b2 * np.sqrt(N) + d2) * (np.sqrt(M) - np.sqrt(ERF_M0)) * e2
+    n2o = (a3 * np.sqrt(C) + b3 * np.sqrt(N) + c3 * np.sqrt(M) + d3) * (np.sqrt(N) - np.sqrt(ERF_N0)) * e3
+    return co2, ch4, n2o
+
+
+def erf_monthly(gases: pd.DataFrame) -> pd.DataFrame:
+    w = gases.pivot(index="date", columns="series", values="average")[["co2_global", "ch4_global", "n2o_global"]].dropna()
+    co2, ch4, n2o = erf_gases(w.co2_global, w.ch4_global, w.n2o_global)
+    out = pd.DataFrame({"erf_co2_wm2": co2, "erf_ch4_wm2": ch4, "erf_n2o_wm2": n2o})
+    out["erf_co2_ch4_n2o_wm2"] = out.sum(axis=1)
+    # NOAA's own annual values: our annual mean of the monthly forcing must reproduce them
+    t = pd.read_csv(io.StringIO(get(AGGI_TABLE).decode()), comment="#").set_index("Year")
+    gate(list(t.columns[:3]) == ["CO2", "CH4", "N2O"], f"aggi: table columns {list(t.columns[:3])}")
+    full = out.groupby(out.index.year).filter(lambda g: len(g) == 12)
+    ann = full.groupby(full.index.year).mean().join(t[["CO2", "CH4", "N2O"]], how="inner")
+    worst = max((ann[a] - ann[b]).abs().max() for a, b in
+                [("erf_co2_wm2", "CO2"), ("erf_ch4_wm2", "CH4"), ("erf_n2o_wm2", "N2O")])
+    gate(len(ann) >= 20 and worst <= ERF_TOL,
+         f"erf: annual means vs NOAA AGGI Table 2 over {len(ann)} years, max |diff| {worst:.4f} W m-2 (<= {ERF_TOL})")
+    return out.round(4).rename_axis("date").reset_index()
+
+
+def pdo_monthly() -> pd.DataFrame:
+    """NOAA NCEI's PDO index (ERSST v5 anomalies projected on the Mantua PDO pattern), monthly from 1854."""
+    rows = []
+    for ln in get(PDO_URL).decode().splitlines():
+        p = ln.split()
+        if len(p) == 13 and re.fullmatch(r"\d{4}", p[0]):
+            for k, v in enumerate(p[1:]):
+                if float(v) < 99:  # 99.99 = not yet available
+                    rows.append({"date": pd.Timestamp(int(p[0]), k + 1, 1), "pdo": float(v)})
+    df = pd.DataFrame(rows)
+    gate(len(df) > 2000 and df.date.min() == pd.Timestamp("1854-01-01"), f"pdo: from 1854-01 ({len(df)} months)")
+    gate(len(pd.date_range(df.date.min(), df.date.max(), freq="MS")) == len(df), "pdo: no missing months")
+    gate(df.pdo.between(-5, 5).all(), f"pdo: within [-5,5] ({df.pdo.min()}..{df.pdo.max()})")
+    fresh(lag_days(df.date.max()) <= 75, f"pdo: last month {df.date.max().date()} within 75 days")
+    return df
+
+
+def tsi_monthly() -> pd.DataFrame:
+    """NOAA's Total Solar Irradiance CDR (monthly, one file per year, NNLTSI model), updated about once a year.
+    Only the latest two years and years missing from the committed table are downloaded; earlier years come
+    from the committed table, and history_guard keeps them from changing silently."""
+    import netCDF4
+    listing = get(TSI_DIR).decode()
+    found = {(m.group(0), m.group(1), int(m.group(2)))
+             for m in re.finditer(r"tsi_(v\d+r\d+)_monthly_s(\d{4})\d\d_e\d{6}_c\d{8}\.nc", listing)}
+    names = {y: f for f, _, y in found}
+    gate(len(found) > 100 and len(names) == len(found),
+         f"tsi: {len(found)} files listed, one per year ({len(names)} years)")
+    versions = sorted({v for _, v, _ in found})
+    gate(versions == [TSI_VERSION], f"tsi: every file is version {TSI_VERSION} ({versions}); "
+                                     "a new version needs a human look")
+    path = DATA / "climate_drivers_monthly.csv"
+    old = pd.read_csv(path, parse_dates=["date"])[["date", "tsi_wm2"]].dropna() if path.exists() else None
+    have = set(old.date.dt.year) if old is not None else set()
+    latest = max(names)
+    want = sorted(y for y in names if y >= latest - 1 or y not in have)
+    parts = [old[~old.date.dt.year.isin(want)]] if old is not None else []
+    with tempfile.TemporaryDirectory() as td:
+        for y in want:
+            f = Path(td) / names[y]
+            get(TSI_DIR + names[y], f)
+            with netCDF4.Dataset(f) as ds:
+                t = ds["time"]
+                d = netCDF4.num2date(t[:], t.units, only_use_cftime_datetimes=False)
+                parts.append(pd.DataFrame({"date": [pd.Timestamp(x.year, x.month, 1) for x in d],
+                                           "tsi_wm2": np.ma.filled(ds["TSI"][:].astype(float), np.nan).round(4)}))
+    # the newly downloaded years must continue the committed ones: a recalibrated release would be spliced onto
+    # old values otherwise
+    if old is not None:
+        new = pd.concat(parts[1:]).set_index("date").tsi_wm2
+        both = pd.concat([old.set_index("date").tsi_wm2, new], axis=1, keys=["old", "new"]).dropna()
+        d = (both.old - both.new).abs().max() if len(both) else 0.0
+        gate(len(both) >= 12 and d <= 0.01, f"tsi: re-downloaded {len(both)} committed months unchanged (max diff {d})")
+    df = pd.concat(parts).sort_values("date").reset_index(drop=True)
+    gate(df.date.is_unique and len(pd.date_range(df.date.min(), df.date.max(), freq="MS")) == len(df),
+         f"tsi: months unique and contiguous ({df.date.min().date()}..{df.date.max().date()})")
+    gate(df.tsi_wm2.between(1355, 1368).all(), f"tsi: within [1355,1368] W m-2 ({df.tsi_wm2.min()}..{df.tsi_wm2.max()})")
+    fresh(lag_days(df.date.max()) <= 500, f"tsi: last month {df.date.max().date()} within 500 days (yearly releases)")
+    print(f"tsi: downloaded {len(want)} yearly files ({want[0]}..{want[-1]})", flush=True)
+    return df
+
+
+def climate_drivers(gases: pd.DataFrame) -> pd.DataFrame:
+    df = pdo_monthly().merge(tsi_monthly(), on="date", how="outer").merge(erf_monthly(gases), on="date", how="outer")
+    df = df.sort_values("date").reset_index(drop=True)
+    gate(df.date.is_unique and len(pd.date_range(df.date.min(), df.date.max(), freq="MS")) == len(df),
+         "drivers: months unique and contiguous")
+    return df[["date", "erf_co2_wm2", "erf_ch4_wm2", "erf_n2o_wm2", "erf_co2_ch4_n2o_wm2", "tsi_wm2", "pdo"]]
+
+
 # ---------------------------------------------------------------- monthly panel
 def monthly_panel(t: dict[str, pd.DataFrame]) -> pd.DataFrame:
     """One row per month with every indicator side by side (monthly means of the daily tables).
@@ -666,6 +970,7 @@ def monthly_panel(t: dict[str, pd.DataFrame]) -> pd.DataFrame:
 
     ice, gas, sst_, air_, enso, atm = (t["sea_ice_extent_daily"], t["greenhouse_gases_monthly"], t["sst_daily"],
                                        t["air_temperature_daily"], t["enso_monthly"], t["atmosphere_indices_daily"])
+    drv = t["climate_drivers_monthly"]
     cols = [
         mmean(air_, "global_2t_anom_1991_2020", "air_temp_global_anom"),
         mmean(sst_, "world_60s_60n_anom_1991_2020", "sst_world_60s_60n_anom"),
@@ -683,6 +988,11 @@ def monthly_panel(t: dict[str, pd.DataFrame]) -> pd.DataFrame:
         cols.append(g.set_index(g.date.dt.to_period("M"))["average"].rename(name))
     e = enso.set_index(enso.date.dt.to_period("M"))
     cols += [e["oni_anom"], e["roni_anom"]]
+    # columns added in v4 go last: Kaggle carries column descriptions over by position
+    d = drv.set_index(drv.date.dt.to_period("M"))
+    cols += [mmean(air_, "global_2t_anom_preindustrial", "air_temp_global_anom_preindustrial"),
+             mmean(sst_, "amo_ts06", "sst_amo_ts06"),
+             e["roni_episode"], d["erf_co2_ch4_n2o_wm2"], d["tsi_wm2"], d["pdo"]]
     df = pd.concat(cols, axis=1).sort_index()
     df = df[df.index >= pd.Period("1950-01", "M")].dropna(how="all")
     df.insert(0, "date", df.index.to_timestamp())
@@ -776,14 +1086,18 @@ def main() -> int:
                     help="recompute only these years (testing)")
     args = ap.parse_args()
 
+    gases = gases_monthly()
     tables = {
         "sea_ice_extent_daily": (sea_ice(), ["date", "hemisphere"], 30),
         "co2_daily_mauna_loa": (co2_daily(), ["date"], 60),
-        "greenhouse_gases_monthly": (gases_monthly(), ["series", "date"], 400),
+        "greenhouse_gases_monthly": (gases, ["series", "date"], 400),
         "sst_daily": (sst(args.sst_backfill_from, args.sst_years), ["date"], 60),
         "air_temperature_daily": (air(), ["date"], 120),
         "enso_monthly": (enso_monthly(), ["date"], None),
         "atmosphere_indices_daily": (atmosphere_daily(), ["date"], None),
+        # PDO follows ERSST revisions, TSI is reprocessed with each yearly release and the forcing follows NOAA
+        # GML's gas revisions: revisable like the CPC indices (rows may not disappear).
+        "climate_drivers_monthly": (climate_drivers(gases), ["date"], None),
     }
     tables["climate_monthly_panel"] = (monthly_panel({k: v[0] for k, v in tables.items()}), ["date"], None)
     for name, (df, keys, recent) in tables.items():
