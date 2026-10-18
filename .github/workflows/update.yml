@@ -101,9 +101,9 @@ jobs:
           # the CLI can print a rejected upload and still exit 0
           if grep -qiE "error|unsuccessful" kaggle.log; then exit 1; fi
 
-      # The records notebook reads the latest dataset version, so it is re-run once that version
-      # has finished processing; otherwise it would show the previous day.
-      - name: Re-run the records notebook on Kaggle
+      # The records and year-to-date notebooks read the latest dataset version, so they are re-run once
+      # that version has finished processing; otherwise they would show the previous day.
+      - name: Re-run the notebooks on Kaggle
         if: >-
           inputs.publish ||
           (github.event_name == 'schedule' && vars.KAGGLE_PUBLISH == 'true' && steps.commit.outputs.changed == 'true')
@@ -121,7 +121,7 @@ jobs:
             sleep 30
           done
           set -o pipefail
-          for nb in notebooks/todays-records; do
+          for nb in notebooks/todays-records notebooks/hottest-year; do
             kaggle kernels push -p "$nb" 2>&1 | tee kernel.log
             if grep -qiE "error|unsuccessful" kernel.log; then exit 1; fi
           done

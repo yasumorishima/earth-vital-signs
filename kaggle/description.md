@@ -4,7 +4,7 @@ The popular Kaggle copies of these series stopped updating in 2017-2019. This on
 
 Source code and the full history of every update: https://github.com/yasumorishima/earth-vital-signs
 
-Notebooks: [a first look](https://www.kaggle.com/code/yasunorim/earth-vital-signs-a-first-look) and [is today a climate record?](https://www.kaggle.com/code/yasunorim/earth-vital-signs-is-today-a-climate-record), which is re-run after every daily version.
+Notebooks: [a first look](https://www.kaggle.com/code/yasunorim/earth-vital-signs-a-first-look), plus [is today a climate record?](https://www.kaggle.com/code/yasunorim/earth-vital-signs-is-today-a-climate-record) and [will this year be the warmest?](https://www.kaggle.com/code/yasunorim/earth-vital-signs-will-this-year-be-the-warmest), which are re-run after every daily version.
 
 ## Files
 
