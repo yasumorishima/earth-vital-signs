@@ -12,8 +12,8 @@
     "last_date": "2026-09-01"
   },
   "sst_daily": {
-    "rows": 16483,
-    "last_date": "2026-10-17"
+    "rows": 16484,
+    "last_date": "2026-10-18"
   },
   "air_temperature_daily": {
     "rows": 31702,
@@ -24,8 +24,8 @@
     "last_date": "2026-08-01"
   },
   "atmosphere_indices_daily": {
-    "rows": 28048,
-    "last_date": "2026-10-16"
+    "rows": 28049,
+    "last_date": "2026-10-17"
   },
   "climate_drivers_monthly": {
     "rows": 2073,
@@ -35,7 +35,5 @@
     "rows": 922,
     "last_date": "2026-10-01"
   },
-  "stale_sources": [
-    "sst_daily: https://psl.noaa.gov/thredds/fileServer/Datasets/noaa.oisst.v2.highres/sst.day.mean.2026.nc kept refusing (no progress); keeping the committed table (last date 2026-10-17)"
-  ]
+  "stale_sources": []
 }
