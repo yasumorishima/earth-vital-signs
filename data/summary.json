@@ -35,5 +35,7 @@
     "rows": 922,
     "last_date": "2026-10-01"
   },
-  "stale_sources": []
+  "stale_sources": [
+    "sst_daily: https://psl.noaa.gov/thredds/fileServer/Datasets/noaa.oisst.v2.highres/sst.day.mean.2026.nc kept refusing (no progress); keeping the committed table (last date 2026-10-19)"
+  ]
 }
