@@ -4,16 +4,16 @@
     "last_date": "2026-10-17"
   },
   "co2_daily_mauna_loa": {
-    "rows": 16008,
-    "last_date": "2026-10-20"
+    "rows": 16009,
+    "last_date": "2026-10-21"
   },
   "greenhouse_gases_monthly": {
     "rows": 2564,
     "last_date": "2026-09-01"
   },
   "sst_daily": {
-    "rows": 16486,
-    "last_date": "2026-10-20"
+    "rows": 16487,
+    "last_date": "2026-10-21"
   },
   "air_temperature_daily": {
     "rows": 31705,
@@ -24,8 +24,8 @@
     "last_date": "2026-08-01"
   },
   "atmosphere_indices_daily": {
-    "rows": 28051,
-    "last_date": "2026-10-19"
+    "rows": 28052,
+    "last_date": "2026-10-20"
   },
   "climate_drivers_monthly": {
     "rows": 2073,
@@ -35,7 +35,5 @@
     "rows": 922,
     "last_date": "2026-10-01"
   },
-  "stale_sources": [
-    "sst_daily: https://psl.noaa.gov/thredds/fileServer/Datasets/noaa.oisst.v2.highres/sst.day.mean.2026.nc kept refusing (no progress); keeping the committed table (last date 2026-10-20)"
-  ]
+  "stale_sources": []
 }
