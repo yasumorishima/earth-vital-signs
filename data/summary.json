@@ -4,16 +4,16 @@
     "last_date": "2026-10-17"
   },
   "co2_daily_mauna_loa": {
-    "rows": 16010,
-    "last_date": "2026-10-22"
+    "rows": 16011,
+    "last_date": "2026-10-23"
   },
   "greenhouse_gases_monthly": {
     "rows": 2564,
     "last_date": "2026-09-01"
   },
   "sst_daily": {
-    "rows": 16488,
-    "last_date": "2026-10-22"
+    "rows": 16489,
+    "last_date": "2026-10-23"
   },
   "air_temperature_daily": {
     "rows": 31707,
@@ -24,8 +24,8 @@
     "last_date": "2026-08-01"
   },
   "atmosphere_indices_daily": {
-    "rows": 28053,
-    "last_date": "2026-10-21"
+    "rows": 28054,
+    "last_date": "2026-10-22"
   },
   "climate_drivers_monthly": {
     "rows": 2073,
