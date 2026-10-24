@@ -16,8 +16,8 @@
     "last_date": "2026-10-22"
   },
   "air_temperature_daily": {
-    "rows": 31706,
-    "last_date": "2026-10-21"
+    "rows": 31707,
+    "last_date": "2026-10-22"
   },
   "enso_monthly": {
     "rows": 920,
@@ -35,5 +35,9 @@
     "rows": 922,
     "last_date": "2026-10-01"
   },
-  "stale_sources": []
+  "stale_sources": [
+    "sea_ice global: last date 2026-10-17 within 6 days",
+    "sea_ice north: last date 2026-10-17 within 6 days",
+    "sea_ice south: last date 2026-10-17 within 6 days"
+  ]
 }
