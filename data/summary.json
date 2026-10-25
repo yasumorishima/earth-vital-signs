@@ -16,8 +16,8 @@
     "last_date": "2026-10-23"
   },
   "air_temperature_daily": {
-    "rows": 31707,
-    "last_date": "2026-10-22"
+    "rows": 31708,
+    "last_date": "2026-10-23"
   },
   "enso_monthly": {
     "rows": 920,
@@ -38,6 +38,7 @@
   "stale_sources": [
     "sea_ice global: last date 2026-10-17 within 6 days",
     "sea_ice north: last date 2026-10-17 within 6 days",
-    "sea_ice south: last date 2026-10-17 within 6 days"
+    "sea_ice south: last date 2026-10-17 within 6 days",
+    "sst_daily: https://psl.noaa.gov/thredds/fileServer/Datasets/noaa.oisst.v2.highres/sst.day.mean.2026.nc kept refusing (no progress); keeping the committed table (last date 2026-10-23)"
   ]
 }
