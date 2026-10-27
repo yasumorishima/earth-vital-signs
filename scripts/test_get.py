@@ -182,5 +182,39 @@ commit_table(14)
 grid("kept table exactly 14 days old passes", http(429), "KEPT")
 (data / "t.csv").unlink()
 grid("429 with no committed table still raises", http(429), "RAISED")
+
+# an unreachable source: the small-file path retries with longer waits, then raises an error that
+# build.py reports as transient (exit 75), unlike a 403 or wrong bytes
+import socket  # noqa: E402
+
+with socket.socket() as s:
+    s.bind(("127.0.0.1", 0))
+    closed = f"http://127.0.0.1:{s.getsockname()[1]}/x"  # nothing listens here once closed
+SLEPT.clear()
+try:
+    build.get(closed)
+    res = "returned"
+except urllib.error.URLError as e:
+    res = "URLError" if not isinstance(e, urllib.error.HTTPError) else "HTTPError"
+want = [30.0, 60.0, 120.0, 240.0, 300.0]
+good = res == "URLError" and SLEPT == want
+ok &= good
+print(("PASS" if good else "FAIL"), f"unreachable source raises after {build.NET_TRIES} tries ->", res,
+      f"waits {SLEPT}")
+for name, e, want in [
+    ("unreachable", urllib.error.URLError(OSError(101, "Network is unreachable")), True),
+    ("connection reset", ConnectionResetError(), True),
+    ("timeout", TimeoutError(), True),
+    ("429 after retries", http(429), True),
+    ("503 after retries", http(503), True),
+    ("stall", OSError("u: no progress at 5 of 9 bytes"), True),
+    ("403", http(403), False),
+    ("404", http(404), False),
+    ("server ignoring Range", OSError("u: server ignored Range (status 200)"), False),
+    ("a bug", ValueError("x"), False),
+]:
+    good = build.transient(e) == want
+    ok &= good
+    print(("PASS" if good else "FAIL"), f"transient({name}) is {want}")
 print("ALL PASS" if ok else "SOME FAILED")
 sys.exit(0 if ok else 1)
