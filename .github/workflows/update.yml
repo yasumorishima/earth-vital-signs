@@ -56,13 +56,29 @@ jobs:
         run: python scripts/test_derived.py
 
       # Gates run inside build.py; any failure exits non-zero before data/ is touched.
+      # Exit 75 means a source could not be reached after the retries. A scheduled run then ends with a
+      # warning instead of a failure while the data are under 48 hours old, since the next run (three a
+      # day) retries; past that, or on a manual run, it fails.
       - name: Build and gate
+        id: build
         env:
           SST_FROM: ${{ inputs.sst_backfill_from }}
+          EVENT: ${{ github.event_name }}
         run: |
           args=()
           if [ -n "$SST_FROM" ]; then args+=(--sst-backfill-from "$SST_FROM"); fi
-          python scripts/build.py "${args[@]}"
+          rc=0
+          python scripts/build.py "${args[@]}" || rc=$?
+          if [ "$rc" = 75 ] && [ "$EVENT" = schedule ]; then
+            age_h=$(( ($(date +%s) - $(git log -1 --format=%ct -- data/)) / 3600 ))
+            if [ "$age_h" -lt 48 ]; then
+              echo "::warning title=source unreachable::A source could not be reached; data/ was last updated ${age_h} h ago and the next scheduled run retries."
+              echo "skipped=true" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            echo "::error title=source unreachable::A source could not be reached and data/ has not been updated for ${age_h} h."
+          fi
+          if [ "$rc" != 0 ]; then exit "$rc"; fi
           # file and column descriptions are regenerated from the data just written; this fails if a
           # described column and the CSV header disagree, so a schema change cannot ship undescribed
           python scripts/make_kaggle_meta.py
@@ -70,6 +86,7 @@ jobs:
 
       - name: Commit data
         id: commit
+        if: steps.build.outputs.skipped != 'true'
         run: |
           git add data/ kaggle/dataset-metadata.json kaggle/settings.json
           if git diff --cached --quiet; then
@@ -89,7 +106,7 @@ jobs:
       # again. A manual run with publish=true always publishes the current build.
       - name: Check whether Kaggle has this data
         id: kaggle
-        if: github.event_name == 'schedule' && vars.KAGGLE_PUBLISH == 'true'
+        if: github.event_name == 'schedule' && vars.KAGGLE_PUBLISH == 'true' && steps.build.outputs.skipped != 'true'
         env:
           KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
           KAGGLE_KEY: ${{ secrets.KAGGLE_KEY }}

@@ -89,26 +89,46 @@ def _refused(e: Exception) -> bool:
     return isinstance(e, OSError) and "no progress at" in str(e)
 
 
+# NOAA GML was unreachable from a runner (Errno 101) for over a minute on 2026-10-27, half a minute
+# after serving the CO2 file, so network errors wait 30 s, 1, 2, 4 and 5 min (about 12 min in all).
+NET_TRIES = 6
+
+
+def _net_wait(attempt: int) -> float:
+    return min(30.0 * 2 ** (attempt - 1), 300.0)
+
+
+def transient(e: BaseException) -> bool:
+    """A failure that the next scheduled run can be expected to clear: the network or the server
+    kept refusing after the retries, as opposed to wrong bytes or a failed gate."""
+    if isinstance(e, urllib.error.HTTPError):
+        return _retryable(e)
+    return isinstance(e, (urllib.error.URLError, ConnectionError, TimeoutError)) or _refused(e)
+
+
 def get(url: str, dest: Path | None = None, tries: int = 4) -> bytes | None:
     """Small files are returned as bytes. Large files go to dest and are resumed with HTTP Range:
     the PSL server closes each connection after roughly 11 MB, so a 356 MB year arrives in pieces.
     The file must end at exactly the advertised length or this raises."""
     if dest is None:
-        for i in range(tries):
+        refused = net = 0
+        while True:
             try:
                 req = urllib.request.Request(url, headers={"User-Agent": UA})
                 with urllib.request.urlopen(req, timeout=600) as r:
                     return r.read()
             except urllib.error.HTTPError as e:
-                if not _retryable(e) or i == tries - 1:
+                refused += 1
+                if not _retryable(e) or refused == tries:
                     raise
-                print(f"retry {i + 1} {url}: {e}", flush=True)
-                time.sleep(max(10 * (i + 1), _retry_after(e, i + 1)))
-            except Exception as e:  # network errors are retried, then raised
-                if i == tries - 1:
+                print(f"retry {refused} {url}: {e}", flush=True)
+                time.sleep(max(10 * refused, _retry_after(e, refused)))
+            except Exception as e:  # network errors are retried with longer waits, then raised
+                net += 1
+                if net == NET_TRIES:
                     raise
-                print(f"retry {i + 1} {url}: {e}", flush=True)
-                time.sleep(10 * (i + 1))
+                print(f"retry {net} {url}: {e}", flush=True)
+                time.sleep(_net_wait(net))
     # PSL rewrites the current year's file daily and ignores If-Range (a stale validator still
     # gets 206, measured 2026-10-03), so every piece must carry the same Last-Modified and length
     # as the first; otherwise the download starts over instead of splicing two versions.
@@ -1126,5 +1146,17 @@ def main() -> int:
     return 0
 
 
+# Exit status for "a source could not be reached": the workflow lets a scheduled run end with a
+# warning instead of a failure, as long as the data were updated recently (see update.yml).
+EXIT_TRANSIENT = 75
+
 if __name__ == "__main__":
-    sys.exit(main())
+    try:
+        sys.exit(main())
+    except Exception as e:
+        if not transient(e):
+            raise
+        import traceback
+        traceback.print_exc()
+        print(f"\nA source could not be reached ({type(e).__name__}: {e}); nothing written.", flush=True)
+        sys.exit(EXIT_TRANSIENT)
