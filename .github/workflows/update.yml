@@ -39,6 +39,8 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.ref_name }}
+          # enough history for `git log -- data/` to find the last data commit (named in the Kaggle notes)
+          fetch-depth: 50
 
       - uses: actions/setup-python@v5
         with:
@@ -82,12 +84,21 @@ jobs:
           echo "changed=true" >> "$GITHUB_OUTPUT"
 
       # Scheduled runs publish only after the repository variable KAGGLE_PUBLISH is set to true,
-      # and only when data changed. A manual run with publish=true always publishes the current
-      # build, so a failed publish can be retried without waiting for new data.
+      # and only when the latest Kaggle version is not the data committed here (its notes name the
+      # commit). So a failed upload is retried by the next scheduled run, not only when data changes
+      # again. A manual run with publish=true always publishes the current build.
+      - name: Check whether Kaggle has this data
+        id: kaggle
+        if: github.event_name == 'schedule' && vars.KAGGLE_PUBLISH == 'true'
+        env:
+          KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
+          KAGGLE_KEY: ${{ secrets.KAGGLE_KEY }}
+        run: |
+          pip install kaggle==2.2.4
+          python scripts/kaggle_published.py yasunorim/earth-vital-signs-daily "$(git log -1 --format=%h -- data/ kaggle/dataset-metadata.json kaggle/settings.json)"
+
       - name: Publish Kaggle version
-        if: >-
-          inputs.publish ||
-          (github.event_name == 'schedule' && vars.KAGGLE_PUBLISH == 'true' && steps.commit.outputs.changed == 'true')
+        if: inputs.publish || steps.kaggle.outputs.behind == 'true'
         env:
           KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
           KAGGLE_KEY: ${{ secrets.KAGGLE_KEY }}
@@ -99,16 +110,15 @@ jobs:
           # the JSON, so only the JSON line goes to jq.
           prev=$(kaggle datasets status --format 'json(current_version_number)' yasunorim/earth-vital-signs-daily | grep '^{' | jq -er .current_version_number)
           echo "KAGGLE_PREV_VERSION=$prev" >> "$GITHUB_ENV"
-          kaggle datasets version -p _build -m "Data through $(jq -r '.sst_daily.last_date' data/summary.json)" --dir-mode zip 2>&1 | tee kaggle.log
+          commit=$(git log -1 --format=%h -- data/ kaggle/dataset-metadata.json kaggle/settings.json)
+          kaggle datasets version -p _build -m "Data through $(jq -r '.sst_daily.last_date' data/summary.json) (commit $commit)" --dir-mode zip 2>&1 | tee kaggle.log
           # the CLI can print a rejected upload and still exit 0
           if grep -qiE "error|unsuccessful" kaggle.log; then exit 1; fi
 
       # The records and year-to-date notebooks read the latest dataset version, so they are re-run once
       # that version has finished processing; otherwise they would show the previous day.
       - name: Re-run the notebooks on Kaggle
-        if: >-
-          inputs.publish ||
-          (github.event_name == 'schedule' && vars.KAGGLE_PUBLISH == 'true' && steps.commit.outputs.changed == 'true')
+        if: inputs.publish || steps.kaggle.outputs.behind == 'true'
         env:
           KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
           KAGGLE_KEY: ${{ secrets.KAGGLE_KEY }}
