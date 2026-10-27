@@ -94,8 +94,10 @@ jobs:
         run: |
           pip install kaggle==2.2.4
           set -o pipefail
-          # the version number before this upload, so the next step can wait for the new one
-          prev=$(kaggle datasets status --format 'json(current_version_number)' yasunorim/earth-vital-signs-daily | jq -er .current_version_number)
+          # the version number before this upload, so the next step can wait for the new one.
+          # The CLI prints notices such as "Warning: ... outdated `kaggle` version" to stdout ahead of
+          # the JSON, so only the JSON line goes to jq.
+          prev=$(kaggle datasets status --format 'json(current_version_number)' yasunorim/earth-vital-signs-daily | grep '^{' | jq -er .current_version_number)
           echo "KAGGLE_PREV_VERSION=$prev" >> "$GITHUB_ENV"
           kaggle datasets version -p _build -m "Data through $(jq -r '.sst_daily.last_date' data/summary.json)" --dir-mode zip 2>&1 | tee kaggle.log
           # the CLI can print a rejected upload and still exit 0
@@ -113,7 +115,8 @@ jobs:
         run: |
           # `status` reports the current version: wait until it is newer than before the upload and ready
           for i in $(seq 1 40); do
-            js=$(kaggle datasets status --format 'json(status,current_version_number)' yasunorim/earth-vital-signs-daily 2>/dev/null || true)
+            # only the JSON line: the CLI can print a warning line before it (see the publish step)
+            js=$(kaggle datasets status --format 'json(status,current_version_number)' yasunorim/earth-vital-signs-daily 2>/dev/null | grep '^{' || true)
             echo "status: $js (before upload: version $KAGGLE_PREV_VERSION)"
             ok=$(echo "$js" | jq -r --argjson p "$KAGGLE_PREV_VERSION" 'select(.status == "ready" and .current_version_number > $p) | "ok"' 2>/dev/null || true)
             if [ "$ok" = ok ]; then break; fi
