@@ -1,7 +1,7 @@
 {
   "sea_ice_extent_daily": {
-    "rows": 47619,
-    "last_date": "2026-10-17"
+    "rows": 47649,
+    "last_date": "2026-10-27"
   },
   "co2_daily_mauna_loa": {
     "rows": 16015,
@@ -35,9 +35,5 @@
     "rows": 922,
     "last_date": "2026-10-01"
   },
-  "stale_sources": [
-    "sea_ice global: last date 2026-10-17 within 6 days",
-    "sea_ice north: last date 2026-10-17 within 6 days",
-    "sea_ice south: last date 2026-10-17 within 6 days"
-  ]
+  "stale_sources": []
 }
