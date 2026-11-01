@@ -19,6 +19,7 @@ NOAA / NSIDC / Copernicus の気候指標を毎日 CSV にして `data/` にコ�
 
 ## ハマりどころ
 - kaggle CLI は 2.2.4 に固定。新しい版が出ると「Warning: outdated kaggle version」を stdout の JSON より前に出すので、`kaggle ... --format json` の出力は必ず `grep '^{'` してから jq に渡す。`import kaggle` は import 時に認証する。
+- kaggle 2.2.4 は `six` を import するのに依存に書いていない。python-dateutil 4.0.0 で `six` が入らなくなり、run #101 が `No module named 'six'` で失敗した。そのため `pip install kaggle==2.2.4 six` としている。
 - Kaggle の版一覧は `curl -sS https://www.kaggle.com/api/v1/datasets/view/yasunorim/earth-vital-signs-daily` で確認できる(Claude Code のクラウド環境ではプロキシが認証を付ける)。
 - Claude の GitHub 連携には Actions の権限がない。そのためワークフローの手動実行(workflow_dispatch)はできず 403 になる。ログの閲覧、PR の作成・マージはできる。
 - 作業ブランチの force push は自動モードで拒否される。マージ済みのブランチを再利用するときは、main から作り直して旧リモートブランチを通常の merge で取り込む(衝突は自分の側を採用)。
@@ -31,4 +32,5 @@ NOAA / NSIDC / Copernicus の気候指標を毎日 CSV にして `data/` にコ�
 - 10/22〜27: kaggle 2.2.5 が出て警告行で jq が壊れ、公開が止まった(Kaggle は v42 のまま)。PR #3 で直した。
 - PR #4: 版メモにコミットを入れ、定期実行が公開漏れに自動で追いつくようにした。10/28 の run #88 で v43 を公開し、ノートブック2本の再実行も成功した。
 - PR #5: 通信断(run #87、NOAA GML に Errno 101)で失敗メールが来ないようにした。
-- 未確認: データが変わらない定期実行で `behind=false` になり、二重に公開しないこと(10/29 01:00 UTC に確認予約あり)。
+- 確認済み: データが変わらない定期実行(11/1 の run #100)は、`behind=false` で公開とノートブック再実行を飛ばした。
+- 11/1 の run #101: `six` がなくて失敗した。依存に足して直した(上記)。

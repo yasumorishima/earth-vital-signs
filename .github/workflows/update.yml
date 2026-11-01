@@ -111,7 +111,7 @@ jobs:
           KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
           KAGGLE_KEY: ${{ secrets.KAGGLE_KEY }}
         run: |
-          pip install kaggle==2.2.4
+          pip install kaggle==2.2.4 six  # kaggle imports six without declaring it; python-dateutil 4 no longer pulls it in
           python scripts/kaggle_published.py yasunorim/earth-vital-signs-daily "$(git log -1 --format=%h -- data/ kaggle/dataset-metadata.json kaggle/settings.json)"
 
       - name: Publish Kaggle version
@@ -120,7 +120,7 @@ jobs:
           KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
           KAGGLE_KEY: ${{ secrets.KAGGLE_KEY }}
         run: |
-          pip install kaggle==2.2.4
+          pip install kaggle==2.2.4 six  # kaggle imports six without declaring it; python-dateutil 4 no longer pulls it in
           set -o pipefail
           # the version number before this upload, so the next step can wait for the new one.
           # The CLI prints notices such as "Warning: ... outdated `kaggle` version" to stdout ahead of
