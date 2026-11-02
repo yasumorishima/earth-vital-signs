@@ -6,6 +6,7 @@ NOAA / NSIDC / Copernicus の気候指標を毎日 CSV にして `data/` にコ�
 - `scripts/build.py`: 取得 → 派生列 → ゲート。どれか1つでもゲートが FAIL なら `data/` に書かずに終了 1。`data/` と Kaggle 用の `_build/` を書く。
 - `scripts/make_kaggle_meta.py`: `kaggle/dataset-metadata.json` と `kaggle/settings.json` を生成し、CSV の列と食い違えば失敗。
 - `scripts/kaggle_published.py`: Kaggle 最新版の版メモ `(commit <sha>)` とリポジトリを比べ、`behind=true|false` を出す。
+- `scripts/make_charts.py`: README の図(race.gif、気温・海氷・海面水温・CO2 の PNG)を描く。ワークフローの最後のステップが `charts` ブランチに1コミットで force push し、README は raw.githubusercontent.com の `charts/` を参照する(main の履歴に画像をためないため)。
 - テスト(ネット不要、CI でも実行): `python scripts/test_get.py`、`python scripts/test_derived.py`。
 - `scripts/make_*notebook.py` はノートブック生成用(一度だけ実行、成果物はコミット済み)。`mutants_derived.py` はゲートの効き目検査(要ネット)。
 

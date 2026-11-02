@@ -2,6 +2,12 @@
 
 The planet's headline climate indicators as tidy CSV, rebuilt every day by GitHub Actions from the original NOAA, NSIDC and Copernicus files.
 
+<p align="center"><img src="https://raw.githubusercontent.com/yasumorishima/earth-vital-signs/charts/race.gif" alt="This year's year-to-date global temperature against the warmest year, week by week" width="640"></p>
+
+<p align="center"><img src="https://raw.githubusercontent.com/yasumorishima/earth-vital-signs/charts/air_temperature.png" alt="Daily global air temperature above 1850-1900 for every year since 1940, this year in red" width="100%"></p>
+
+The charts are redrawn from the CSVs below after every update; more are in [Charts](#charts).
+
 | File | What | From |
 |---|---|---|
 | [`data/sea_ice_extent_daily.csv`](data/sea_ice_extent_daily.csv) | Arctic, Antarctic and global sea ice extent, with anomaly, rank for the date, record-low flag, year-over-year change | 1978-10-26 |
@@ -15,6 +21,18 @@ The planet's headline climate indicators as tidy CSV, rebuilt every day by GitHu
 | [`data/climate_monthly_panel.csv`](data/climate_monthly_panel.csv) | Everything above as monthly columns, one row per month | 1950-01 |
 
 Column-by-column descriptions are in [`kaggle/settings.json`](kaggle/settings.json) (generated with the Kaggle metadata by `scripts/make_kaggle_meta.py`, which fails if a description and the data disagree). The latest dates are in [`data/summary.json`](data/summary.json). A starter notebook is in [`notebooks/`](notebooks/earth-vital-signs-starter.ipynb). The same files are published on Kaggle as [**Earth Vital Signs - Daily Climate Indicators**](https://www.kaggle.com/datasets/yasunorim/earth-vital-signs-daily), with a new version each day the data changes, and the starter notebook runs there as [Earth Vital Signs: a first look](https://www.kaggle.com/code/yasunorim/earth-vital-signs-a-first-look). A second notebook, [Is today a climate record?](https://www.kaggle.com/code/yasunorim/earth-vital-signs-is-today-a-climate-record) ([source](notebooks/todays-records/todays-records.ipynb)), ranks the latest day of each series against the same date in every earlier year and is re-run on Kaggle after each daily version. A third, [Will this year be the warmest?](https://www.kaggle.com/code/yasunorim/earth-vital-signs-will-this-year-be-the-warmest) ([source](notebooks/hottest-year/hottest-year.ipynb)), follows the year-to-date race against the record year with an animation, the pace the rest of the year would need, the days above 1.5 C and the El Nino lag; it is re-run the same way.
+
+## Charts
+
+Every grey line is one complete year; the red line is this year and the black one the record year.
+
+![Arctic and Antarctic sea ice extent for every year since 1979](https://raw.githubusercontent.com/yasumorishima/earth-vital-signs/charts/sea_ice.png)
+
+![Daily sea surface temperature 60S-60N for every year since 1982](https://raw.githubusercontent.com/yasumorishima/earth-vital-signs/charts/sst.png)
+
+![Daily CO2 at Mauna Loa since 1974](https://raw.githubusercontent.com/yasumorishima/earth-vital-signs/charts/co2.png)
+
+They are drawn by [`scripts/make_charts.py`](scripts/make_charts.py) and pushed to the [`charts`](../../tree/charts) branch, replacing the previous set.
 
 ## Why another copy
 

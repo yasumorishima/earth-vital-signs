@@ -155,3 +155,21 @@ jobs:
             kaggle kernels push -p "$nb" 2>&1 | tee kernel.log
             if grep -qiE "error|unsuccessful" kernel.log; then exit 1; fi
           done
+
+      # The README charts are drawn from the data on main and pushed to the `charts` branch as a
+      # single commit that replaces the previous one, so daily images never pile up in history.
+      # This runs last: a failure here cannot hold back the data or the Kaggle version.
+      - name: Draw the README charts
+        if: steps.build.outputs.skipped != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          pip install matplotlib==3.11.2 pillow==13.0.0
+          python scripts/make_charts.py _charts
+          cd _charts
+          git init -q -b charts
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -qm "charts: data through $(jq -r '.sst_daily.last_date' ../data/summary.json)"
+          git push -qf "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" charts
