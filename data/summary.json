@@ -12,8 +12,8 @@
     "last_date": "2026-09-01"
   },
   "sst_daily": {
-    "rows": 16500,
-    "last_date": "2026-11-03"
+    "rows": 16501,
+    "last_date": "2026-11-04"
   },
   "air_temperature_daily": {
     "rows": 31719,
