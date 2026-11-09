@@ -151,9 +151,15 @@ jobs:
             sleep 30
           done
           set -o pipefail
+          # Kaggle sometimes rejects a push with a passing error ("The operation was canceled.", run #125),
+          # so each push is tried up to 3 times, 1 and then 2 minutes apart.
           for nb in notebooks/todays-records notebooks/hottest-year; do
-            kaggle kernels push -p "$nb" 2>&1 | tee kernel.log
-            if grep -qiE "error|unsuccessful" kernel.log; then exit 1; fi
+            for try in 1 2 3; do
+              # success = exit 0 and no error text (the CLI can print a rejection and still exit 0)
+              if kaggle kernels push -p "$nb" 2>&1 | tee kernel.log && ! grep -qiE "error|unsuccessful" kernel.log; then break; fi
+              if [ "$try" = 3 ]; then exit 1; fi
+              sleep $((try * 60))
+            done
           done
 
       # The README charts are drawn from the data on main and pushed to the `charts` branch as a
