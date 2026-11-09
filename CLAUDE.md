@@ -17,6 +17,7 @@ NOAA / NSIDC / Copernicus の気候指標を毎日 CSV にして `data/` にコ�
 - checkout の `fetch-depth: 50` は、`git log -- data/` が最終データコミットを見つけるために必要。
 - `build.py` が終了 75 のときは、ソースに届かなかったことを表す(通信エラー、5xx/408/429、ダウンロード停滞)。定期実行で `data/` の更新から 48 時間未満なら、警告だけ出して成功扱いにし、コミットと Kaggle を飛ばす。手動実行や 48 時間以上経っている場合は失敗にする。
 - 通信エラーのやり直しは 30 秒・1・2・4・5 分(計約 12 分)。HTTP 429/5xx は従来どおり。
+- ノートブックの再実行(`kaggle kernels push`)は1本につき最大3回、1分・2分空けてやり直す。
 
 ## ハマりどころ
 - kaggle CLI は 2.2.4 に固定。新しい版が出ると「Warning: outdated kaggle version」を stdout の JSON より前に出すので、`kaggle ... --format json` の出力は必ず `grep '^{'` してから jq に渡す。`import kaggle` は import 時に認証する。
@@ -35,3 +36,4 @@ NOAA / NSIDC / Copernicus の気候指標を毎日 CSV にして `data/` にコ�
 - PR #5: 通信断(run #87、NOAA GML に Errno 101)で失敗メールが来ないようにした。
 - 確認済み: データが変わらない定期実行(11/1 の run #100)は、`behind=false` で公開とノートブック再実行を飛ばした。
 - 11/1 の run #101: `six` がなくて失敗した。依存に足して直した(上記)。
+- 11/9 の run #125: データは v69 で公開できたが、ノートブックの送信が Kaggle 側の「The operation was canceled.」で失敗した。送信をやり直すようにした(上記)。データ公開済みなので次の実行は behind=false になり、ノートブックは次のデータ更新のときに再実行される。
