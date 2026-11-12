@@ -31723,4 +31723,5 @@ date,global_2t,global_2t_clim_1991_2020,global_2t_anom_1991_2020,status,global_r
 2026-11-06,14.708,13.672,1.036,final,1,True,1.9156,True,False,1.5197,1.5282,2,False
 2026-11-07,14.621,13.638,0.983,final,1,True,1.8641,True,False,1.5209,1.5293,2,False
 2026-11-08,14.587,13.603,0.984,final,1,True,1.8665,True,False,1.5223,1.5304,2,False
-2026-11-09,14.54,13.569,0.971,preliminary,1,True,1.855,True,False,1.5238,1.5314,2,False
+2026-11-09,14.544,13.569,0.975,final,1,True,1.859,True,False,1.5239,1.5314,2,False
+2026-11-10,14.534,13.535,0.999,preliminary,1,True,1.8845,True,False,1.5255,1.5326,2,False
