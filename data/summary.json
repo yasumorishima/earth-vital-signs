@@ -8,8 +8,8 @@
     "last_date": "2026-11-18"
   },
   "greenhouse_gases_monthly": {
-    "rows": 2564,
-    "last_date": "2026-09-01"
+    "rows": 2572,
+    "last_date": "2026-10-01"
   },
   "sst_daily": {
     "rows": 16513,
