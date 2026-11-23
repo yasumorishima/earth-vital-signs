@@ -2,7 +2,10 @@
 code once per target as a control, which must pass every gate. Run from the repo root on a machine with network."""
 import importlib.util
 import sys
+import tempfile
 from pathlib import Path
+
+import pandas as pd
 
 SRC = Path("scripts/build.py").read_text(encoding="utf-8")
 MUT = {  # name: (target, original, replacement, substring of the gate that must fail)
@@ -26,6 +29,20 @@ MUT = {  # name: (target, original, replacement, substring of the gate that must
     "tsi_recalibrated": ("tsi", '"tsi_wm2": np.ma.filled(ds["TSI"][:].astype(float), np.nan).round(4)',
                          '"tsi_wm2": (np.ma.filled(ds["TSI"][:].astype(float), np.nan) + 0.05).round(4)',
                          "re-downloaded"),
+    # The two SST checks run on the committed data/sst_daily.csv (no PSL download); a code defect in the shared
+    # region_means would move both sides of the NCEI check alike, so box errors are planted in the mapping instead
+    "nino_box_swapped": ("sst_weekly", '"Nino34": "nino34_5n_5s_170w_120w"', '"Nino34": "nino3_5n_5s_150w_90w"',
+                         "Nino34 7-day mean vs CPC weekly"),
+    "cpc_anomaly_read": ("sst_weekly", "**{k: vals[2 * i] for i, k in enumerate(NINO)}",
+                         "**{k: vals[2 * i + 1] for i, k in enumerate(NINO)}", "vs CPC weekly"),
+}
+# Defects in the table itself: name: (target, transform of the committed table, substring of the gate)
+DATA_MUT = {
+    "sst_one_day_late": ("sst_ncei", lambda d: d.assign(date=d.date + pd.Timedelta(days=1)), "sst cross-check"),
+    "sst_plus_0p01": ("sst_ncei", lambda d: d.assign(**{k: d[k] + 0.01 for k in REG}), "sst cross-check"),
+    "sst_plus_0p1": ("sst_weekly", lambda d: d.assign(**{k: d[k] + 0.1 for k in REG}), "vs CPC weekly"),
+    # only ~25 comparable weeks left: the check must fail on the count, not pass on what is left
+    "sst_too_few_weeks": ("sst_weekly", lambda d: d[d.date > d.date.max() - pd.Timedelta(days=200)], "vs CPC weekly"),
 }
 
 
@@ -39,8 +56,22 @@ def load(name, src):
     return m
 
 
-def run(m, target):
+REG = list(load("regions", SRC).REGIONS)
+
+
+def sst_table():
+    return pd.read_csv("data/sst_daily.csv", parse_dates=["date"], usecols=["date"] + REG)
+
+
+def run(m, target, df=None):
     m.FAIL.clear()
+    if target.startswith("sst_"):
+        df = sst_table() if df is None else df
+        if target == "sst_ncei":
+            with tempfile.TemporaryDirectory() as td:
+                m.sst_crosscheck(df, Path(td))
+        else:
+            m.cpc_weekly_check(df)
     if target == "air":
         m.air()
     elif target == "enso":
@@ -53,7 +84,7 @@ def run(m, target):
 
 
 ok = True
-for t in ("air", "enso", "erf", "tsi"):
+for t in ("air", "enso", "erf", "tsi", "sst_ncei", "sst_weekly"):
     fails = run(load(f"control_{t}", SRC), t)
     good = not fails
     ok &= good
@@ -67,5 +98,14 @@ for name, (t, a, b, want) in MUT.items():
     hit = any(want in f for f in fails)
     ok &= hit
     print(f"{'CAUGHT' if hit else 'MISSED'} {name}: intended gate '{want}'; failed: {[f[:110] for f in fails]}", flush=True)
+base = load("control_data", SRC)
+for name, (t, f, want) in DATA_MUT.items():
+    try:
+        fails = run(base, t, f(sst_table()))
+    except Exception as e:
+        fails = [f"CRASH {type(e).__name__}: {e}"]
+    hit = any(want in x for x in fails)
+    ok &= hit
+    print(f"{'CAUGHT' if hit else 'MISSED'} {name}: intended gate '{want}'; failed: {[x[:110] for x in fails]}", flush=True)
 print("ALL MUTANTS CAUGHT, CONTROLS CLEAN" if ok else "PROBLEM")
 sys.exit(0 if ok else 1)
