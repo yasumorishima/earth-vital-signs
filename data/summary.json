@@ -1,11 +1,11 @@
 {
   "sea_ice_extent_daily": {
-    "rows": 47730,
-    "last_date": "2026-11-23"
+    "rows": 47733,
+    "last_date": "2026-11-24"
   },
   "co2_daily_mauna_loa": {
-    "rows": 16038,
-    "last_date": "2026-11-23"
+    "rows": 16039,
+    "last_date": "2026-11-24"
   },
   "greenhouse_gases_monthly": {
     "rows": 2572,
@@ -24,8 +24,8 @@
     "last_date": "2026-09-01"
   },
   "atmosphere_indices_daily": {
-    "rows": 28085,
-    "last_date": "2026-11-22"
+    "rows": 28086,
+    "last_date": "2026-11-23"
   },
   "climate_drivers_monthly": {
     "rows": 2074,
@@ -35,5 +35,7 @@
     "rows": 923,
     "last_date": "2026-11-01"
   },
-  "stale_sources": []
+  "stale_sources": [
+    "sst_daily: https://psl.noaa.gov/thredds/fileServer/Datasets/noaa.oisst.v2.highres/sst.day.mean.2026.nc kept refusing (no progress); keeping the committed table (last date 2026-11-18)"
+  ]
 }
